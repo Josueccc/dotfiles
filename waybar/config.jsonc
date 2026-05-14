@@ -1,0 +1,204 @@
+{
+    "layer": "top",
+    "position": "top",
+    "height": 38,
+    "spacing": 0,
+    "margin-top": 6,
+    "margin-left": 12,
+    "margin-right": 12,
+
+    "modules-left": [
+        "custom/distro",
+        "hyprland/workspaces",
+        "hyprland/window"
+    ],
+    "modules-center": ["clock"],
+    "modules-right": [
+        "custom/notification",
+        "bluetooth",
+        "network",
+        "backlight",
+        "pulseaudio",
+        "cpu",
+        "memory",
+        "battery",
+        "tray",
+        "custom/power"
+    ],
+
+    // ── Distro logo ────────────────────────────────────────────────────────
+    "custom/distro": {
+        "format": "󰣇",
+        "tooltip": false,
+        "on-click": "kitty"
+    },
+
+    // ── Workspaces ─────────────────────────────────────────────────────────
+    "hyprland/workspaces": {
+        "format": "{name}",
+        "on-scroll-up": "hyprctl dispatch workspace e+1",
+        "on-scroll-down": "hyprctl dispatch workspace e-1",
+        "all-outputs": false,
+        "sort-by-number": true
+    },
+
+    // ── Active window title ────────────────────────────────────────────────
+    "hyprland/window": {
+        "max-length": 45,
+        "separate-outputs": true
+    },
+
+    // ── Clock + built-in calendar tooltip ─────────────────────────────────
+    "clock": {
+        "format": "  {:%H:%M}",
+        "format-alt": "  {:%A, %d %B %Y}",
+        "tooltip-format": "<tt><small>{calendar}</small></tt>",
+        "calendar": {
+            "mode": "month",
+            "on-scroll": 1,
+            "format": {
+                "months":   "<span color='#cba6f7'><b>{}</b></span>",
+                "days":     "<span color='#cdd6f4'>{}</span>",
+                "weeks":    "<span color='#94e2d5'><b>W{}</b></span>",
+                "weekdays": "<span color='#89b4fa'><b>{}</b></span>",
+                "today":    "<span color='#f38ba8'><b><u>{}</u></b></span>"
+            }
+        },
+        "actions": {
+            "on-click": "shift_reset",
+            "on-click-right": "mode",
+            "on-scroll-up": "shift_up",
+            "on-scroll-down": "shift_down"
+        }
+    },
+
+    // ── Notification bell (swaync) ─────────────────────────────────────────
+    // left-click  → toggle notification panel
+    // right-click → toggle do-not-disturb
+    "custom/notification": {
+        "tooltip": false,
+        "format": "{icon}",
+        "format-icons": {
+            "notification":           "󱅫",
+            "none":                   "󰂚",
+            "dnd-notification":       "󰂛",
+            "dnd-none":               "󰂛",
+            "inhibited-notification": "󱅫",
+            "inhibited-none":         "󰂚",
+            "dnd-inhibited-notification": "󰂛",
+            "dnd-inhibited-none":     "󰂛"
+        },
+        "return-type": "json",
+        "exec-if": "which swaync-client",
+        "exec": "swaync-client -swb",
+        "on-click": "swaync-client -t -sw",
+        "on-click-right": "swaync-client -d -sw",
+        "escape": true
+    },
+
+    // ── Bluetooth ──────────────────────────────────────────────────────────
+    // left-click → blueman-manager
+    "bluetooth": {
+        "format": "󰂯",
+        "format-connected": "󰂱 {device_alias}",
+        "format-connected-battery": "󰂱 {device_alias} {device_battery_percentage}%",
+        "format-off": "󰂲",
+        "tooltip-format": "Bluetooth {status}\n{controller_alias}  {controller_address}",
+        "tooltip-format-connected": "{controller_alias}\n\n{num_connections} connected\n{device_enumerate}",
+        "tooltip-format-enumerate-connected": "  {device_alias}",
+        "tooltip-format-enumerate-connected-battery": "  {device_alias} — {device_battery_percentage}%",
+        "on-click": "blueman-manager"
+    },
+
+    // ── Network ────────────────────────────────────────────────────────────
+    // left-click  → nm-connection-editor (GUI)
+    // right-click → nmtui in terminal
+    "network": {
+        "format-wifi":        "  {essid}",
+        "format-ethernet":    "󰈀 {ipaddr}",
+        "format-disconnected": "󰌺",
+        "format-linked":      "󰈀 (no IP)",
+        "tooltip-format-wifi":     "  {essid}  {signalStrength}%\n  {ipaddr}/{cidr}\n  {gwaddr}",
+        "tooltip-format-ethernet": "󰈀 {ifname}  {ipaddr}/{cidr}",
+        "tooltip-format-disconnected": "Disconnected",
+        "on-click": "nm-connection-editor",
+        "on-click-right": "kitty --class=floating -e nmtui"
+    },
+
+    // ── Brightness ─────────────────────────────────────────────────────────
+    // scroll → adjust brightness in 5% steps
+    "backlight": {
+        "device": "amdgpu_bl2",
+        "format": "{icon} {percent}%",
+        "format-icons": ["󰃞", "󰃟", "󰃠"],
+        "on-scroll-up": "brightnessctl set +5%",
+        "on-scroll-down": "brightnessctl set 5%-",
+        "tooltip": false
+    },
+
+    // ── Audio ──────────────────────────────────────────────────────────────
+    // left-click  → pavucontrol
+    // right-click → toggle mute
+    // scroll      → volume ±5%
+    "pulseaudio": {
+        "format": "{icon} {volume}%",
+        "format-muted": "󰝟",
+        "format-icons": {
+            "headphone":  "󰋋",
+            "hands-free": "󱠰",
+            "headset":    "󰋎",
+            "phone":      "󰏲",
+            "portable":   "󰏲",
+            "car":        "󰄋",
+            "default":    ["󰕿", "󰖀", "󰕾"]
+        },
+        "scroll-step": 5,
+        "on-click": "pavucontrol",
+        "on-click-right": "pactl set-sink-mute @DEFAULT_SINK@ toggle",
+        "tooltip-format": "{icon} {volume}%\n󰍬 mic {source_volume}%"
+    },
+
+    // ── CPU ────────────────────────────────────────────────────────────────
+    "cpu": {
+        "format": "󰻠 {usage}%",
+        "interval": 2,
+        "tooltip": false
+    },
+
+    // ── Memory ────────────────────────────────────────────────────────────
+    "memory": {
+        "format": "󰍛 {percentage}%",
+        "tooltip-format": "RAM  {used:0.1f} / {total:0.1f} GiB\nSwap {swapUsed:0.1f} / {swapTotal:0.1f} GiB",
+        "interval": 5
+    },
+
+    // ── Battery ────────────────────────────────────────────────────────────
+    // left-click → rofi power-profile picker
+    "battery": {
+        "states": {
+            "good":     80,
+            "warning":  30,
+            "critical": 15
+        },
+        "format": "{icon} {capacity}%",
+        "format-charging": "󱐋 {capacity}%",
+        "format-plugged":  "󰚥 {capacity}%",
+        "format-alt": "{icon} {time}",
+        "format-icons": ["󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"],
+        "tooltip-format": "{timeTo}\nPower: {power} W",
+        "on-click": "~/.config/waybar/scripts/power-profile.sh"
+    },
+
+    // ── System tray ───────────────────────────────────────────────────────
+    "tray": {
+        "spacing": 8,
+        "icon-size": 16
+    },
+
+    // ── Power menu ────────────────────────────────────────────────────────
+    "custom/power": {
+        "format": "⏻",
+        "tooltip": false,
+        "on-click": "~/.config/waybar/scripts/powermenu.sh"
+    }
+}

@@ -1,0 +1,7 @@
+[env]
+# xterm-alacritty is unknown to most remote servers; fall back to a universal TERM
+TERM = "xterm-256color"
+
+[window]
+opacity = 0.85
+padding = { x = 7, y = 7 }

@@ -1,0 +1,139 @@
+* {
+  all: unset;
+  font-size: 14px;
+  font-family: "JetBrainsMono Nerd Font", monospace;
+}
+
+.notification-row {
+  outline: none;
+  margin: 4px;
+}
+
+.notification-row:focus,
+.notification-row:hover {
+  opacity: 0.9;
+}
+
+.notification {
+  background: rgba(30, 30, 46, 0.95);
+  border: 1px solid rgba(137, 180, 250, 0.3);
+  border-radius: 8px;
+  color: #cdd6f4;
+  padding: 8px;
+  margin: 4px;
+}
+
+.notification-content {
+  padding: 4px;
+}
+
+.close-button {
+  background: rgba(243, 139, 168, 0.2);
+  border-radius: 4px;
+  color: #f38ba8;
+  min-width: 24px;
+  min-height: 24px;
+  margin: 4px;
+}
+
+.close-button:hover {
+  background: #f38ba8;
+  color: #1e1e2e;
+}
+
+.notification-default-action {
+  border-radius: 8px;
+}
+
+.notification-action {
+  background: rgba(137, 180, 250, 0.1);
+  border: 1px solid rgba(137, 180, 250, 0.3);
+  border-radius: 4px;
+  color: #89b4fa;
+  margin: 2px;
+}
+
+.notification-action:hover {
+  background: #89b4fa;
+  color: #1e1e2e;
+}
+
+.summary {
+  font-weight: bold;
+  color: #cdd6f4;
+}
+
+.time {
+  color: #6c7086;
+  font-size: 12px;
+}
+
+.body {
+  color: #bac2de;
+}
+
+.control-center {
+  background: rgba(30, 30, 46, 0.97);
+  border: 1px solid rgba(137, 180, 250, 0.2);
+  border-radius: 12px;
+  color: #cdd6f4;
+  padding: 8px;
+}
+
+.control-center-list {
+  background: transparent;
+}
+
+.control-center-list-placeholder {
+  color: #6c7086;
+}
+
+.floating-notifications {
+  background: transparent;
+}
+
+.blank-window {
+  background: transparent;
+}
+
+.widget-title {
+  color: #cdd6f4;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 8px;
+}
+
+.widget-title > button {
+  background: rgba(243, 139, 168, 0.15);
+  border: 1px solid rgba(243, 139, 168, 0.3);
+  border-radius: 6px;
+  color: #f38ba8;
+  padding: 4px 8px;
+}
+
+.widget-title > button:hover {
+  background: #f38ba8;
+  color: #1e1e2e;
+}
+
+.widget-dnd {
+  padding: 8px;
+}
+
+.widget-dnd > switch {
+  background: rgba(108, 112, 134, 0.3);
+  border-radius: 12px;
+  border: 1px solid rgba(108, 112, 134, 0.5);
+}
+
+.widget-dnd > switch:checked {
+  background: rgba(137, 180, 250, 0.4);
+  border-color: #89b4fa;
+}
+
+.widget-dnd > switch slider {
+  background: #cdd6f4;
+  border-radius: 10px;
+  min-width: 20px;
+  min-height: 20px;
+}

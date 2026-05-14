@@ -1,0 +1,15 @@
+{
+  "snippets.ultisnips.pythonPrompt": false,
+  "html.filetypes": [
+      "html",
+      "handlebars",
+      "htmldjango",
+      "blade",
+      "php"
+  ],
+  "prettier.useTabs": true, 
+  "prettier.tabWidth": 4,
+  "flutter.lsp.debug": true,
+  "flutter.trace.server": "verbose",
+  "svelte.enable-ts-plugin": true,
+}

@@ -1,0 +1,180 @@
+configuration {
+    modi:                       "drun,run,window";
+    show-icons:                 true;
+    icon-theme:                 "Papirus";
+    drun-display-format:        "{name}";
+    display-drun:               "  Apps";
+    display-run:                "  Run";
+    display-window:             "  Windows";
+    font:                       "JetBrainsMono Nerd Font 12";
+    terminal:                   "kitty";
+}
+
+/* ── Catppuccin Mocha ───────────────────────────────────────────────────── */
+* {
+    base:       #1e1e2e;
+    mantle:     #181825;
+
+    /* semi-transparent surfaces — requires compositor (Hyprland ✓) */
+    bg-window:  rgba(30, 30, 46, 0.88);
+    bg-input:   rgba(24, 24, 37, 0.94);
+    crust:      #11111b;
+    surface0:   #313244;
+    surface1:   #45475a;
+    overlay0:   #6c7086;
+    subtext0:   #a6adc8;
+    text:       #cdd6f4;
+
+    blue:       #89b4fa;
+    mauve:      #cba6f7;
+    red:        #f38ba8;
+    peach:      #fab387;
+    green:      #a6e3a1;
+    teal:       #94e2d5;
+
+    background-color:   transparent;
+    text-color:         @text;
+}
+
+/* ── Window ─────────────────────────────────────────────────────────────── */
+window {
+    background-color:   @bg-window;
+    border:             1px;
+    border-color:       @surface1;
+    border-radius:      14px;
+    width:              520px;
+    padding:            14px;
+}
+
+/* ── Layout ─────────────────────────────────────────────────────────────── */
+mainbox {
+    background-color:   transparent;
+    children:           [ inputbar, listview, mode-switcher ];
+    spacing:            10px;
+}
+
+/* ── Search bar ─────────────────────────────────────────────────────────── */
+inputbar {
+    background-color:   @bg-input;
+    border:             1px;
+    border-color:       @surface1;
+    border-radius:      10px;
+    padding:            8px 14px;
+    children:           [ prompt, entry ];
+    spacing:            8px;
+}
+
+prompt {
+    background-color:   transparent;
+    text-color:         @blue;
+}
+
+entry {
+    background-color:   transparent;
+    text-color:         @text;
+    placeholder:        "Search…";
+    placeholder-color:  @overlay0;
+}
+
+/* ── Results list ───────────────────────────────────────────────────────── */
+listview {
+    background-color:   transparent;
+    columns:            1;
+    lines:              8;
+    scrollbar:          false;
+    spacing:            2px;
+    fixed-height:       true;
+}
+
+/* unselected, normal */
+element.normal.normal {
+    background-color:   transparent;
+    text-color:         @subtext0;
+}
+
+/* unselected, active (e.g. currently running window) */
+element.normal.active {
+    background-color:   transparent;
+    text-color:         @teal;
+}
+
+/* unselected, urgent */
+element.normal.urgent {
+    background-color:   transparent;
+    text-color:         @red;
+}
+
+/* alternating row — subtle surface tint */
+element.alternate.normal {
+    background-color:   transparent;
+    text-color:         @subtext0;
+}
+
+element.alternate.active {
+    background-color:   transparent;
+    text-color:         @teal;
+}
+
+element.alternate.urgent {
+    background-color:   transparent;
+    text-color:         @red;
+}
+
+/* selected, normal */
+element.selected.normal {
+    background-color:   @blue;
+    text-color:         @base;
+}
+
+/* selected, active */
+element.selected.active {
+    background-color:   @teal;
+    text-color:         @base;
+}
+
+/* selected, urgent */
+element.selected.urgent {
+    background-color:   @red;
+    text-color:         @base;
+}
+
+element {
+    border-radius:      8px;
+    padding:            8px 12px;
+    spacing:            10px;
+    children:           [ element-icon, element-text ];
+}
+
+element-icon {
+    background-color:   transparent;
+    size:               22px;
+    vertical-align:     0.5;
+}
+
+element-text {
+    background-color:   transparent;
+    vertical-align:     0.5;
+    /* text-color inherits from the element state selectors above */
+}
+
+/* ── Mode switcher ──────────────────────────────────────────────────────── */
+mode-switcher {
+    background-color:   transparent;
+    spacing:            6px;
+}
+
+button {
+    background-color:   @mantle;
+    border:             1px;
+    border-color:       @surface1;
+    border-radius:      8px;
+    padding:            5px 14px;
+    text-color:         @subtext0;
+    cursor:             pointer;
+}
+
+button selected {
+    background-color:   @surface0;
+    border-color:       @blue;
+    text-color:         @blue;
+}

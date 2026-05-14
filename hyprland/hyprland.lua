@@ -1,0 +1,280 @@
+-- hyprland.lua
+-- https://wiki.hypr.land/Configuring/Start/
+
+
+------------------
+---- MONITORS ----
+------------------
+
+hl.monitor({
+    output   = "",
+    mode     = "preferred",
+    position = "auto",
+    scale    = "1.25",
+})
+
+
+---------------------
+---- MY PROGRAMS ----
+---------------------
+
+local terminal    = "alacritty"
+local fileManager = "thunar"
+local browser     = "firefox"
+local menu        = "rofi -show drun"
+
+
+-------------------
+---- AUTOSTART ----
+-------------------
+
+hl.on("hyprland.start", function()
+    hl.exec_cmd("swww-daemon")
+    hl.exec_cmd("waybar")
+    hl.exec_cmd("swaync")
+    hl.exec_cmd("waypaper --restore")
+    hl.exec_cmd("swayosd-server")
+    hl.exec_cmd("hypridle")
+    -- hl.exec_cmd("dunst")
+end)
+
+
+-------------------------------
+---- ENVIRONMENT VARIABLES ----
+-------------------------------
+
+hl.env("XCURSOR_SIZE", "24")
+hl.env("HYPRCURSOR_SIZE", "24")
+hl.env("QT_QPA_PLATFORMTHEME", "hyprqt6engine")
+-- hl.env("QT_QPA_PLATFORMTHEME", "qt6ct")
+hl.env("GKT_THEME", "Adwaita:dark")
+hl.env("STEAM_FORCE_DESKTOPUI_SCALING", "1.25")
+
+
+-----------------------
+---- LOOK AND FEEL ----
+-----------------------
+
+hl.config({
+    general = {
+        gaps_in  = 10,
+        gaps_out = 20,
+
+        border_size = 1,
+
+        col = {
+            active_border   = { colors = {"rgba(89b4faee)", "rgba(cba6f7ee)"}, angle = 45 },
+            inactive_border = "rgba(595959aa)",
+        },
+
+        resize_on_border = true,
+        allow_tearing    = false,
+        layout           = "dwindle",
+    },
+
+    decoration = {
+        rounding = 10,
+
+        active_opacity   = 1.0,
+        inactive_opacity = 0.95,
+
+        shadow = {
+            enabled      = true,
+            range        = 8,
+            render_power = 3,
+            color        = "rgba(1a1a1aee)",
+        },
+
+        blur = {
+            enabled  = false,
+            size     = 4,
+            passes   = 1,
+            vibrancy = 0.1696,
+        },
+    },
+
+    animations = {
+        enabled = true,
+    },
+})
+
+hl.curve("easeOut", { type = "bezier", points = { {0.05, 0.9}, {0.1, 1.05} } })
+hl.curve("linear",  { type = "bezier", points = { {0.0,  0.0}, {1.0, 1.0}  } })
+
+hl.animation({ leaf = "windows",    enabled = true, speed = 5,  bezier = "easeOut" })
+hl.animation({ leaf = "windowsOut", enabled = true, speed = 5,  bezier = "default", style = "popin 80%" })
+hl.animation({ leaf = "border",     enabled = true, speed = 10, bezier = "default" })
+hl.animation({ leaf = "fade",       enabled = true, speed = 5,  bezier = "default" })
+hl.animation({ leaf = "workspaces", enabled = true, speed = 5,  bezier = "default" })
+
+hl.config({
+    dwindle = {
+        preserve_split = true,
+    },
+})
+
+hl.config({
+    master = {
+        new_status = "master",
+    },
+})
+
+hl.config({
+    misc = {
+        force_default_wallpaper = 0,
+        disable_hyprland_logo   = true,
+    },
+})
+
+hl.config({
+    xwayland = {
+        force_zero_scaling = true,
+    },
+})
+
+
+---------------
+---- INPUT ----
+---------------
+
+hl.config({
+    input = {
+        kb_layout    = "us, es",
+        follow_mouse = 1,
+        sensitivity  = 0,
+
+        touchpad = {
+            natural_scroll = true,
+            tap_to_click   = true,
+            drag_lock      = true,
+        },
+    },
+})
+
+
+---------------------
+---- KEYBINDINGS ----
+---------------------
+
+local mainMod = "SUPER"
+
+hl.bind(mainMod .. " + Return", hl.dsp.exec_cmd(terminal))
+hl.bind(mainMod .. " + C",      hl.dsp.window.close())
+hl.bind(mainMod .. " + M",      hl.dsp.exec_cmd("command -v hyprshutdown >/dev/null 2>&1 && hyprshutdown || hyprctl dispatch exit"))
+hl.bind(mainMod .. " + E",      hl.dsp.exec_cmd(fileManager))
+hl.bind(mainMod .. " + V",      hl.dsp.window.float({ action = "toggle" }))
+hl.bind(mainMod .. " + R",      hl.dsp.exec_cmd(menu))
+hl.bind(mainMod .. " + P",      hl.dsp.window.pseudo())
+hl.bind(mainMod .. " + J",      hl.dsp.layout("togglesplit"))
+hl.bind(mainMod .. " + F",      hl.dsp.window.fullscreen())
+
+-- Focus
+hl.bind(mainMod .. " + left",  hl.dsp.focus({ direction = "left" }))
+hl.bind(mainMod .. " + right", hl.dsp.focus({ direction = "right" }))
+hl.bind(mainMod .. " + up",    hl.dsp.focus({ direction = "up" }))
+hl.bind(mainMod .. " + down",  hl.dsp.focus({ direction = "down" }))
+hl.bind(mainMod .. " + h",     hl.dsp.focus({ direction = "left" }))
+hl.bind(mainMod .. " + l",     hl.dsp.focus({ direction = "right" }))
+hl.bind(mainMod .. " + k",     hl.dsp.focus({ direction = "up" }))
+hl.bind(mainMod .. " + j",     hl.dsp.focus({ direction = "down" }))
+
+-- Move windows
+hl.bind(mainMod .. " + SHIFT + left",  hl.dsp.window.move({ direction = "left" }))
+hl.bind(mainMod .. " + SHIFT + right", hl.dsp.window.move({ direction = "right" }))
+hl.bind(mainMod .. " + SHIFT + up",    hl.dsp.window.move({ direction = "up" }))
+hl.bind(mainMod .. " + SHIFT + down",  hl.dsp.window.move({ direction = "down" }))
+hl.bind(mainMod .. " + SHIFT + h",     hl.dsp.window.move({ direction = "left" }))
+hl.bind(mainMod .. " + SHIFT + l",     hl.dsp.window.move({ direction = "right" }))
+hl.bind(mainMod .. " + SHIFT + k",     hl.dsp.window.move({ direction = "up" }))
+hl.bind(mainMod .. " + SHIFT + j",     hl.dsp.window.move({ direction = "down" }))
+
+-- Resize
+hl.bind(mainMod .. " + ALT + right", hl.dsp.window.resize({ x = 30, y = 0 }),  { repeating = true })
+hl.bind(mainMod .. " + ALT + left",  hl.dsp.window.resize({ x = -30, y = 0 }), { repeating = true })
+hl.bind(mainMod .. " + ALT + up",    hl.dsp.window.resize({ x = 0, y= -30 }), { repeating = true })
+hl.bind(mainMod .. " + ALT + down",  hl.dsp.window.resize({ x = 0, y = 30 }),  { repeating = true })
+
+-- Workspaces
+for i = 1, 10 do
+    local key = i % 10
+    hl.bind(mainMod .. " + " .. key,         hl.dsp.focus({ workspace = i }))
+    hl.bind(mainMod .. " + SHIFT + " .. key, hl.dsp.window.move({ workspace = i }))
+end
+
+-- Scroll through workspaces
+hl.bind(mainMod .. " + mouse_down", hl.dsp.focus({ workspace = "e+1" }))
+hl.bind(mainMod .. " + mouse_up",   hl.dsp.focus({ workspace = "e-1" }))
+
+-- Move/resize with mouse
+hl.bind(mainMod .. " + mouse:272", hl.dsp.window.drag(),   { mouse = true })
+hl.bind(mainMod .. " + mouse:273", hl.dsp.window.resize(), { mouse = true })
+
+-- Applications
+hl.bind(mainMod .. " + B", hl.dsp.exec_cmd(browser))
+hl.bind(mainMod .. " + T", hl.dsp.exec_cmd("kitty -e tmux new-session -A -s main"))
+hl.bind(mainMod .. " + N", hl.dsp.exec_cmd("kitty -e yazi"))
+hl.bind(mainMod .. " + G", hl.dsp.exec_cmd("kitty -e lazygit"))
+
+-- Wallpaper picker
+hl.bind(mainMod .. " + W", hl.dsp.exec_cmd("~/.config/waybar/scripts/wallpaper-picker.sh"))
+
+-- Lock screen
+hl.bind(mainMod .. " + CTRL + L", hl.dsp.exec_cmd("hyprlock"))
+
+-- Power menu
+hl.bind(mainMod .. " + SHIFT + P", hl.dsp.exec_cmd("~/.config/waybar/scripts/powermenu.sh"))
+
+-- Notification center
+hl.bind(mainMod .. " + SHIFT + N", hl.dsp.exec_cmd("swaync-client -t -sw"))
+
+-- Screenshot
+hl.bind("Print",         hl.dsp.exec_cmd("grimblast copy area"))
+hl.bind("SHIFT + Print", hl.dsp.exec_cmd("grimblast copy screen"))
+
+-- Audio
+hl.bind("XF86AudioRaiseVolume", hl.dsp.exec_cmd("swayosd-client --output-volume raise"),        { locked = true, repeating = true })
+hl.bind("XF86AudioLowerVolume", hl.dsp.exec_cmd("swayosd-client --output-volume lower"),        { locked = true, repeating = true })
+hl.bind("XF86AudioMute",        hl.dsp.exec_cmd("swayosd-client --output-volume mute-toggle"),  { locked = true })
+hl.bind("XF86AudioMicMute",     hl.dsp.exec_cmd("swayosd-client --input-volume mute-toggle"),   { locked = true })
+
+-- Brightness
+hl.bind("XF86MonBrightnessUp",   hl.dsp.exec_cmd("swayosd-client --brightness raise"), { locked = true, repeating = true })
+hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd("swayosd-client --brightness lower"), { locked = true, repeating = true })
+
+-- Logout
+hl.bind(mainMod .. " + m", hl.dsp.exec_cmd("hyprshutdown"))
+
+
+--------------------------------
+---- WINDOWS AND WORKSPACES ----
+--------------------------------
+
+hl.window_rule({
+    name           = "suppress-maximize-events",
+    match          = { class = ".*" },
+    suppress_event = "maximize",
+})
+
+hl.window_rule({
+    name  = "float-pavucontrol",
+    match = { class = "^(pavucontrol)$" },
+    float = true,
+})
+
+hl.window_rule({
+    name  = "float-nm-connection-editor",
+    match = { class = "^(nm-connection-editor)$" },
+    float = true,
+})
+
+hl.window_rule({
+    name  = "float-pip",
+    match = { title = "^(Picture-in-Picture)$" },
+    float = true,
+})
+
+hl.window_rule({
+    name  = "pin-pip",
+    match = { title = "^(Picture-in-Picture)$" },
+    pin   = true,
+})

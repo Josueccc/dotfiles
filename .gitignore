@@ -1,0 +1,5 @@
+# Claude Code local settings (machine-specific, not for sharing)
+.claude/settings.local.json
+
+# tmux plugin manager — plugins are installed at runtime, not tracked
+.tmux/plugins/

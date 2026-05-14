@@ -1,0 +1,270 @@
+/* ── Catppuccin Mocha palette ─────────────────────────────────────────────── */
+@define-color base      #1e1e2e;
+@define-color mantle    #181825;
+@define-color crust     #11111b;
+@define-color surface0  #313244;
+@define-color surface1  #45475a;
+@define-color surface2  #585b70;
+@define-color overlay0  #6c7086;
+@define-color subtext0  #a6adc8;
+@define-color text      #cdd6f4;
+
+@define-color mauve     #cba6f7;
+@define-color red       #f38ba8;
+@define-color peach     #fab387;
+@define-color yellow    #f9e2af;
+@define-color green     #a6e3a1;
+@define-color teal      #94e2d5;
+@define-color sapphire  #74c7ec;
+@define-color blue      #89b4fa;
+@define-color lavender  #b4befe;
+
+/* ── Global reset ─────────────────────────────────────────────────────────── */
+* {
+    border: none;
+    border-radius: 0;
+    font-family: "JetBrainsMono Nerd Font", monospace;
+    font-size: 13px;
+    min-height: 0;
+    transition: all 0.2s ease;
+}
+
+window#waybar {
+    background: transparent;
+    color: @text;
+}
+
+/* ── Three floating pills ──────────────────────────────────────────────────── */
+.modules-left,
+.modules-center,
+.modules-right {
+    background: alpha(@base, 0.92);
+    border-radius: 12px;
+    border: 1px solid alpha(@surface1, 0.5);
+    padding: 0 4px;
+}
+
+/* ── Tooltip ──────────────────────────────────────────────────────────────── */
+tooltip {
+    background: @mantle;
+    border: 1px solid @surface1;
+    border-radius: 10px;
+    padding: 8px 12px;
+    color: @text;
+}
+
+tooltip label {
+    color: @text;
+}
+
+/* ── Distro icon ──────────────────────────────────────────────────────────── */
+#custom-distro {
+    padding: 0 12px 0 8px;
+    color: @blue;
+    font-size: 18px;
+    border-right: 1px solid @surface1;
+    margin-right: 4px;
+}
+
+#custom-distro:hover {
+    color: @mauve;
+}
+
+/* ── Workspaces ───────────────────────────────────────────────────────────── */
+#workspaces {
+    margin: 4px 4px 4px 4px;
+}
+
+#workspaces button {
+    padding: 0 8px;
+    color: @subtext0;
+    border-radius: 8px;
+    background: transparent;
+    min-width: 26px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+#workspaces button:hover {
+    background: @surface0;
+    color: @text;
+}
+
+#workspaces button.active {
+    background: linear-gradient(135deg, @blue, @mauve);
+    color: @base;
+    min-width: 30px;
+}
+
+#workspaces button.urgent {
+    background: @red;
+    color: @base;
+    animation: urgent-pulse 0.8s infinite alternate;
+}
+
+#workspaces button.empty {
+    color: @overlay0;
+    font-weight: normal;
+}
+
+@keyframes urgent-pulse {
+    from { background: @red; }
+    to   { background: alpha(@red, 0.5); }
+}
+
+/* ── Window title ─────────────────────────────────────────────────────────── */
+#window {
+    padding: 0 10px;
+    color: @subtext0;
+    font-style: italic;
+    font-size: 12px;
+}
+
+/* ── Clock ────────────────────────────────────────────────────────────────── */
+#clock {
+    padding: 0 16px;
+    color: @text;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+/* ── Right modules — shared ───────────────────────────────────────────────── */
+#custom-notification,
+#bluetooth,
+#network,
+#backlight,
+#pulseaudio,
+#cpu,
+#memory,
+#battery,
+#tray {
+    padding: 0 10px;
+    margin: 4px 1px;
+    border-radius: 8px;
+}
+
+#custom-notification:hover,
+#bluetooth:hover,
+#network:hover,
+#backlight:hover,
+#pulseaudio:hover,
+#cpu:hover,
+#memory:hover,
+#battery:hover {
+    background: alpha(@surface0, 0.8);
+}
+
+/* ── Notification bell ────────────────────────────────────────────────────── */
+#custom-notification {
+    color: @blue;
+    font-size: 15px;
+}
+
+#custom-notification.notification,
+#custom-notification.inhibited-notification {
+    color: @red;
+}
+
+#custom-notification.dnd-none,
+#custom-notification.dnd-notification,
+#custom-notification.dnd-inhibited-none,
+#custom-notification.dnd-inhibited-notification {
+    color: @overlay0;
+}
+
+/* ── Bluetooth ────────────────────────────────────────────────────────────── */
+#bluetooth {
+    color: @sapphire;
+}
+
+#bluetooth.off,
+#bluetooth.disabled {
+    color: @overlay0;
+}
+
+/* ── Network ──────────────────────────────────────────────────────────────── */
+#network {
+    color: @teal;
+}
+
+#network.disconnected,
+#network.disabled {
+    color: @overlay0;
+}
+
+/* ── Brightness ───────────────────────────────────────────────────────────── */
+#backlight {
+    color: @yellow;
+}
+
+/* ── Audio ────────────────────────────────────────────────────────────────── */
+#pulseaudio {
+    color: @peach;
+}
+
+#pulseaudio.muted {
+    color: @overlay0;
+}
+
+/* ── CPU ──────────────────────────────────────────────────────────────────── */
+#cpu {
+    color: @teal;
+}
+
+/* ── Memory ───────────────────────────────────────────────────────────────── */
+#memory {
+    color: @mauve;
+}
+
+/* ── Battery ──────────────────────────────────────────────────────────────── */
+#battery {
+    color: @green;
+}
+
+#battery.warning {
+    color: @yellow;
+}
+
+#battery.critical {
+    color: @red;
+    animation: battery-blink 0.6s linear infinite alternate;
+}
+
+#battery.charging,
+#battery.plugged {
+    color: @green;
+}
+
+@keyframes battery-blink {
+    from { color: @red; background: transparent; }
+    to   { color: @base; background: alpha(@red, 0.3); border-radius: 8px; }
+}
+
+/* ── Power button ─────────────────────────────────────────────────────────── */
+#custom-power {
+    padding: 0 10px;
+    margin: 4px 2px 4px 4px;
+    border-radius: 8px;
+    color: @red;
+    font-size: 16px;
+    border-left: 1px solid @surface1;
+}
+
+#custom-power:hover {
+    background: alpha(@red, 0.2);
+}
+
+/* ── System tray ──────────────────────────────────────────────────────────── */
+#tray {
+    margin-right: 2px;
+}
+
+#tray > .passive {
+    -gtk-icon-effect: dim;
+}
+
+#tray > .needs-attention {
+    -gtk-icon-effect: highlight;
+    background: alpha(@red, 0.2);
+    border-radius: 6px;
+}
