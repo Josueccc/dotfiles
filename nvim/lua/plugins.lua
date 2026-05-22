@@ -50,7 +50,7 @@ require("lazy").setup({
     {
         "windwp/nvim-autopairs",   -- replaces jiangmiao/auto-pairs
         event = "InsertEnter",
-        config = true,
+        config = true, 
     },
 
     -- ── Indent guides ──────────────────────────────────────────────────────
@@ -71,7 +71,7 @@ require("lazy").setup({
                     "python", "rust",
                     "typescript", "javascript", "tsx",
                     "html", "css", "json", "sql",
-                    "php", "svelte",
+                    "php", "svelte", "sh"
                 },
             })
         end,
@@ -104,9 +104,12 @@ require("lazy").setup({
     },
 
     -- ── Fast motion (replaces vim-easymotion) ─────────────────────────────
-    -- Use 's' in normal/visual for 2-char jump across the buffer
     {
         url = "https://codeberg.org/andyg/leap.nvim",
+        config = function()
+            vim.keymap.set({ "n", "x", "o" }, "<leader>s", "<Plug>(leap-forward)")
+            vim.keymap.set({ "n", "x", "o" }, "<leader>S", "<Plug>(leap-backward)")
+        end,
     },
 
     -- ── Transparent background ─────────────────────────────────────────────
