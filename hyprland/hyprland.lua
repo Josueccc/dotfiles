@@ -244,6 +244,9 @@ hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd("swayosd-client --brightness lo
 -- Logout
 hl.bind(mainMod .. " + m", hl.dsp.exec_cmd("hyprshutdown"))
 
+-- Neovim
+hl.bind(mainMod .. " + SHIFT + V", hl.dsp.exec_cmd("kitty -e nvim"))
+
 
 --------------------------------
 ---- WINDOWS AND WORKSPACES ----

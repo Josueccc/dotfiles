@@ -3,23 +3,23 @@ set -euo pipefail
 
 DOTFILES="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-green() { printf '\033[0;32m%s\033[0m\n' "$*"; }
+# ── Helpers ────────────────────────────────────────────────────────────────────
+green()  { printf '\033[0;32m%s\033[0m\n' "$*"; }
 yellow() { printf '\033[0;33m%s\033[0m\n' "$*"; }
-red() { printf '\033[0;31m%s\033[0m\n' "$*"; }
+red()    { printf '\033[0;31m%s\033[0m\n' "$*"; }
 
 symlink() {
-    local src="$1"
-    local dst="$2"
+    local src="$1" dst="$2"
 
     if [ ! -e "$src" ]; then
-        yellow "  skip (source missing): $src"
+        yellow "  skip (missing): $src"
         return
     fi
 
     mkdir -p "$(dirname "$dst")"
 
     if [ -L "$dst" ] && [ "$(readlink "$dst")" = "$src" ]; then
-        green "  ok (already linked): $dst"
+        green "  ok: $dst"
         return
     fi
 
@@ -33,9 +33,7 @@ symlink() {
 }
 
 source_line() {
-    local file="$1"
-    local line="$2"
-
+    local file="$1" line="$2"
     if [ ! -f "$file" ]; then return; fi
     if grep -qF "$line" "$file"; then
         green "  ok (already sourced): $file"
@@ -45,78 +43,146 @@ source_line() {
     fi
 }
 
+detect_distro() {
+    [ -f /etc/os-release ] || { echo "unknown"; return; }
+    # shellcheck source=/dev/null
+    . /etc/os-release
+    case "${ID:-}" in
+        arch|manjaro|endeavouros|garuda|cachyos) echo "arch"   ;;
+        fedora|nobara)                           echo "fedora" ;;
+        debian|ubuntu|linuxmint|pop|raspbian)    echo "debian" ;;
+        *)
+            case "${ID_LIKE:-}" in
+                *arch*)            echo "arch"   ;;
+                *fedora*|*rhel*)   echo "fedora" ;;
+                *debian*|*ubuntu*) echo "debian" ;;
+                *)                 echo "unknown" ;;
+            esac ;;
+    esac
+}
+
+usage() {
+    cat <<EOF
+Usage: $0 [--mode MODE] [--distro DISTRO]
+
+  --mode    cli      Symlink CLI and TUI configs only
+            desktop  Symlink CLI + full desktop configs
+  --distro  arch     Arch Linux and derivatives
+            fedora   Fedora and derivatives
+            debian   Debian/Ubuntu — cli mode only
+  -h|--help Show this help
+
+If --mode is omitted and stdin is a TTY, you will be prompted.
+If --distro is omitted, it is auto-detected from /etc/os-release.
+EOF
+}
+
+# ── Arg parsing ────────────────────────────────────────────────────────────────
+MODE=""
+DISTRO=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --mode)    MODE="$2";   shift 2 ;;
+        --distro)  DISTRO="$2"; shift 2 ;;
+        -h|--help) usage; exit 0 ;;
+        *) red "Unknown option: $1"; usage; exit 1 ;;
+    esac
+done
+
+# ── Distro ─────────────────────────────────────────────────────────────────────
+if [ -z "$DISTRO" ]; then
+    DISTRO="$(detect_distro)"
+    if [ "$DISTRO" = "unknown" ]; then
+        yellow "Could not detect distro. Defaulting to arch. Use --distro to override."
+        DISTRO="arch"
+    else
+        yellow "Detected distro: $DISTRO"
+    fi
+fi
+
+case "$DISTRO" in
+    arch|fedora|debian) ;;
+    *) red "Unsupported distro: $DISTRO (use arch, fedora, or debian)"; exit 1 ;;
+esac
+
+# ── Mode ───────────────────────────────────────────────────────────────────────
+if [ -z "$MODE" ]; then
+    if [ "$DISTRO" = "debian" ]; then
+        MODE="cli"
+        yellow "Debian detected — using cli mode (desktop not supported)."
+    elif [ -t 0 ]; then
+        echo ""
+        echo "Select install mode:"
+        echo "  1) cli     — CLI tools and TUIs only"
+        echo "  2) desktop — Full setup including Hyprland desktop"
+        read -rp "Choice [1/2, default 1]: " _choice
+        case "${_choice:-1}" in
+            2) MODE="desktop" ;;
+            *) MODE="cli" ;;
+        esac
+    else
+        MODE="cli"
+    fi
+fi
+
+case "$MODE" in
+    cli|desktop) ;;
+    *) red "Unknown mode: $MODE (use cli or desktop)"; exit 1 ;;
+esac
+
+if [ "$MODE" = "desktop" ] && [ "$DISTRO" = "debian" ]; then
+    yellow "Desktop mode not supported on Debian. Switching to cli."
+    MODE="cli"
+fi
+
+# ── Symlinks ───────────────────────────────────────────────────────────────────
 echo ""
-echo "==> Symlinking configs"
+echo "==> Symlinking configs  [mode=$MODE  distro=$DISTRO]"
 
-# ── Neovim ────────────────────────────────────────────────────────────────────
-symlink "$DOTFILES/nvim"             "$HOME/.config/nvim"
+# CLI configs — always applied
+symlink "$DOTFILES/nvim"                   "$HOME/.config/nvim"
+symlink "$DOTFILES/.tmux.conf"             "$HOME/.tmux.conf"
+symlink "$DOTFILES/fish"                   "$HOME/.config/fish"
+symlink "$DOTFILES/starship/starship.toml" "$HOME/.config/starship.toml"
+symlink "$DOTFILES/lazygit"                "$HOME/.config/lazygit"
+symlink "$DOTFILES/btop"                   "$HOME/.config/btop"
+symlink "$DOTFILES/alacritty"              "$HOME/.config/alacritty"
+symlink "$DOTFILES/kitty"                  "$HOME/.config/kitty"
 
-# ── tmux ──────────────────────────────────────────────────────────────────────
-symlink "$DOTFILES/.tmux.conf"       "$HOME/.tmux.conf"
+# Desktop configs — only when mode=desktop
+if [ "$MODE" = "desktop" ]; then
+    echo ""
+    echo "==> Symlinking desktop configs"
 
-# ── Hyprland ──────────────────────────────────────────────────────────────────
-symlink "$DOTFILES/hyprland/hyprland.lua"    "$HOME/.config/hypr/hyprland.lua"
+    symlink "$DOTFILES/hyprland/hyprland.lua"       "$HOME/.config/hypr/hyprland.lua"
+    symlink "$DOTFILES/hyprland/hyprlock.conf"      "$HOME/.config/hypr/hyprlock.conf"
+    symlink "$DOTFILES/hyprland/hypridle.conf"      "$HOME/.config/hypr/hypridle.conf"
+    symlink "$DOTFILES/hyprland/hyprqt6engine.conf" "$HOME/.config/hypr/hyprqt6engine.conf"
+    symlink "$DOTFILES/rofi"                        "$HOME/.config/rofi"
+    symlink "$DOTFILES/swaync"                      "$HOME/.config/swaync"
+    symlink "$DOTFILES/waybar"                      "$HOME/.config/waybar"
+    symlink "$DOTFILES/waypaper"                    "$HOME/.config/waypaper"
+    symlink "$DOTFILES/qt5ct"                       "$HOME/.config/qt5ct"
+    symlink "$DOTFILES/qt6ct"                       "$HOME/.config/qt6ct"
+    symlink "$DOTFILES/kvantum"                     "$HOME/.config/Kvantum"
+    symlink "$DOTFILES/kde/kdeglobals"              "$HOME/.config/kdeglobals"
+fi
 
-# ── Rofi ──────────────────────────────────────────────────────────────────────
-symlink "$DOTFILES/rofi"             "$HOME/.config/rofi"
-
-# ── Kitty ─────────────────────────────────────────────────────────────────────
-symlink "$DOTFILES/kitty"            "$HOME/.config/kitty"
-
-# ── Alacritty ─────────────────────────────────────────────────────────────────
-symlink "$DOTFILES/alacritty"        "$HOME/.config/alacritty"
-
-# ── Swaync ────────────────────────────────────────────────────────────────────
-symlink "$DOTFILES/swaync"           "$HOME/.config/swaync"
-
-# ── Waybar ────────────────────────────────────────────────────────────────────
-symlink "$DOTFILES/waybar"           "$HOME/.config/waybar"
-
-# ── Waypaper ──────────────────────────────────────────────────────────────────
-symlink "$DOTFILES/waypaper"         "$HOME/.config/waypaper"
-
-# ── Fish ──────────────────────────────────────────────────────────────────────
-symlink "$DOTFILES/fish"             "$HOME/.config/fish"
-
-# ── Starship ──────────────────────────────────────────────────────────────────
-symlink "$DOTFILES/starship/starship.toml"   "$HOME/.config/starship.toml"
-
-# ── Lazygit ───────────────────────────────────────────────────────────────────
-symlink "$DOTFILES/lazygit"          "$HOME/.config/lazygit"
-
-# ── btop ──────────────────────────────────────────────────────────────────────
-symlink "$DOTFILES/btop"             "$HOME/.config/btop"
-
-# ── Hyprlock ──────────────────────────────────────────────────────────────────
-symlink "$DOTFILES/hyprland/hyprlock.conf"   "$HOME/.config/hypr/hyprlock.conf"
-
-# ── Hypridle ──────────────────────────────────────────────────────────────────
-symlink "$DOTFILES/hyprland/hypridle.conf"        "$HOME/.config/hypr/hypridle.conf"
-symlink "$DOTFILES/hyprland/hyprqt6engine.conf"  "$HOME/.config/hypr/hyprqt6engine.conf"
-
-# ── Qt5ct ─────────────────────────────────────────────────────────────────────
-symlink "$DOTFILES/qt5ct"            "$HOME/.config/qt5ct"
-
-# ── Qt6ct ─────────────────────────────────────────────────────────────────────
-symlink "$DOTFILES/qt6ct"            "$HOME/.config/qt6ct"
-
-# ── Kvantum ───────────────────────────────────────────────────────────────────
-symlink "$DOTFILES/kvantum"          "$HOME/.config/Kvantum"
-
-# ── KDE globals (widget style for KDE apps like Dolphin) ──────────────────────
-symlink "$DOTFILES/kde/kdeglobals"   "$HOME/.config/kdeglobals"
-
+# ── Shell rc sourcing ──────────────────────────────────────────────────────────
 echo ""
 echo "==> Sourcing custom.sh in shell configs"
 
-CUSTOM_SOURCE="[ -f \"$DOTFILES/custom.sh\" ] && source \"$DOTFILES/custom.sh\""
-source_line "$HOME/.bashrc"  "$CUSTOM_SOURCE"
-source_line "$HOME/.zshrc"   "$CUSTOM_SOURCE"
+CUSTOM_LINE="[ -f \"$DOTFILES/custom.sh\" ] && source \"$DOTFILES/custom.sh\""
+source_line "$HOME/.bashrc" "$CUSTOM_LINE"
+source_line "$HOME/.zshrc"  "$CUSTOM_LINE"
 
+# ── Done ───────────────────────────────────────────────────────────────────────
 echo ""
 echo "==> Done."
 echo ""
 echo "Notes:"
-echo "  - tmux plugins: run  prefix + I  inside tmux to install via tpm"
-echo "  - nvim plugins: open nvim and run  :PlugInstall"
-echo "  - fish users: add sourcing of custom.sh manually if needed (fish != bash)"
+echo "  - tmux plugins : inside tmux run  prefix + I  (via tpm)"
+echo "  - nvim plugins : open nvim and run  :PlugInstall"
+echo "  - packages     : run  ./packages.sh --mode $MODE --distro $DISTRO"
+echo ""
