@@ -19,7 +19,9 @@ pkill -f -- "cava -p $config" >/dev/null 2>&1
 glyphs=(▁ ▂ ▃ ▄ ▅ ▆ ▇ █)
 
 cava -p "$config" | while IFS= read -r line; do
-    line="${line//;/}"          # in case bar_delimiter is ever set to 59
+    # Drop the separator and anything that isn't a level digit, so a stray
+    # delimiter change shows up as clean bars instead of garbage in the bar.
+    line="${line//[^0-7]/}"
     for i in "${!glyphs[@]}"; do
         line="${line//$i/${glyphs[$i]}}"
     done

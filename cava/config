@@ -52,8 +52,10 @@ data_format = ascii
 # 0-7 inclusive → 8 discrete levels, one per block glyph.
 ascii_max_range = 7
 
-# 0 = no separator between bars (the wrapper adds no spacing either).
-bar_delimiter = 0
+# Separator between bars. This must be a printable char or a newline — 0 does
+# NOT mean "none", it emits a NUL byte, and the wrapper would pass that straight
+# through to waybar. 59 is ';', which the wrapper strips.
+bar_delimiter = 59
 
 [smoothing]
 

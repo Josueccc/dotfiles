@@ -26,7 +26,7 @@ The foundation. Full wallpaper-driven theming pipeline, verified live:
 - [x] **1.1 Commit Phase 0** — done (rizz work in one commit, unrelated pending edits in another)
 - [x] **1.2 hyprlock** — verified live: padlock glyph, 110px clock, pill input, hint line, blurred desktop bg, `hide_cursor`. Glyph note: the lock is U+F0233 and the user icon is U+F0004 — the old user glyph was U+F033E, which is a padlock-with-dot, so the screen had two locks on it
 - [x] **1.3 hyprsunset night light** — done, but *not* with a timer: hyprsunset 0.4 has native time-based profiles (`hyprland/hyprsunset.conf`, 00:00 identity / 18:45 5000K / 22:30 3500K), autostarted from `hyprland.lua`. `Super+Shift+M` = manual override via `hyprland/scripts/nightlight.sh`
-- [~] **1.4 cava in the waybar** — wired: `custom/cava` module + `waybar/scripts/cava.sh` + `cava/config` (raw/ascii mode, digits→block glyphs, colored from the wallpaper palette in CSS). **needs `sudo pacman -S cava`** — not installed yet, so it's hidden by `exec-if`
+- [x] **1.4 cava in the waybar** — live and reacting to audio. `custom/cava` module + `waybar/scripts/cava.sh` + `cava/config` (raw/ascii mode, digits→block glyphs, colored from the wallpaper palette in CSS). Two bugs found by testing rather than by looking: `bar_delimiter = 0` does not mean "no separator", it emits a NUL byte, and `noise_reduction` needs to be low (60) or the bars barely move
 - [x] **1.5 Window rule polish** — done: `popup()` helper in `hyprland.lua` floats/sizes/centers pavucontrol, nm-connection-editor, blueman, GTK/portal file choosers, thunar archive dialogs, satty/swappy; polkit popups are pinned too
 
 ## 🟡 Phase 2 — Accent propagation (2–3h) — highest wow/effort ratio left
@@ -76,6 +76,8 @@ The entire app UI (GTK, Qt, Firefox, Discord…) still ignores the wallpaper.
 - **waybar is restarted** by `wallust/apply-theme.sh` on every wallpaper change, so a cava launched by waybar dies with it — the wrapper script reaps stale ones on startup
 - **waybar's cava module is not available on Arch** (upstream builds with `-Dcava=disabled`), hence `custom/cava`
 - **cava's normal output can't be piped** — ANSI escapes and a stdout window-size probe. Raw/ascii mode is the only pipe-safe path
+- **`bar_delimiter = 0` in cava means NUL, not "nothing"** — it looks like the obvious way to remove the separator and quietly corrupts the output instead. Use a printable char
+- **Playing a test tone to check cava needs `paplay`**, not `pactl play-file` (that subcommand doesn't exist) — worth remembering, since "are the bars moving?" is otherwise hard to answer
 - Verify a wallpaper change actually animated by diffing mid-transition screenshots, not by trusting exit codes — the client returns immediately and the daemon animates
 
 ## ⚡ Perf notes (GTX 1650 + Vega iGPU)
