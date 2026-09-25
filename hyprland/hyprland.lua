@@ -35,6 +35,9 @@ hl.on("hyprland.start", function()
     hl.exec_cmd("swayosd-server")
     hl.exec_cmd("hypridle")
     hl.exec_cmd("dunst")
+    -- Night light. hyprsunset reads hyprsunset.conf and applies the profile
+    -- matching the current time, then swaps profiles on its own at their times.
+    hl.exec_cmd("pkill -x hyprsunset 2>/dev/null; hyprsunset")
 end)
 
 
@@ -262,6 +265,9 @@ hl.bind(mainMod .. " + W", hl.dsp.exec_cmd("~/.config/waybar/scripts/wallpaper-p
 -- Lock screen
 hl.bind(mainMod .. " + CTRL + L", hl.dsp.exec_cmd("hyprlock"))
 
+-- Night light (manual override on top of the hyprsunset time profiles)
+hl.bind(mainMod .. " + SHIFT + M", hl.dsp.exec_cmd("~/.config/hypr/scripts/nightlight.sh"))
+
 -- Power menu
 hl.bind(mainMod .. " + SHIFT + P", hl.dsp.exec_cmd("~/.config/waybar/scripts/powermenu.sh"))
 
@@ -299,18 +305,49 @@ hl.window_rule({
     suppress_event = "maximize",
 })
 
+-- Popups: float, then size, then center. Three separate rules per popup so the
+-- order of the effects is explicit (a floating window has to exist before it can
+-- be resized, and has to be sized before it can be centered).
+--   popup(name, match, width_fraction, height_fraction)
+local function popup(name, match, w, h)
+    hl.window_rule({ name = name .. "-float",  match = match, float = true })
+    hl.window_rule({ name = name .. "-size",   match = match,
+                     size  = { "(monitor_w*" .. w .. ")", "(monitor_h*" .. h .. ")" } })
+    hl.window_rule({ name = name .. "-center", match = match, center = true })
+end
+
+-- Audio mixer
+popup("pavucontrol", { class = "^(pavucontrol)$" }, "0.45", "0.45")
+popup("pavucontrol-pulse", { class = "^(org\\.pulseaudio\\.pavucontrol)$" }, "0.45", "0.45")
+
+-- Network connections
+popup("nm-connection-editor", { class = "^(nm-connection-editor)$" }, "0.45", "0.45")
+
+-- Bluetooth
+popup("blueman-manager", { class = "^(blueman-manager)$" }, "0.40", "0.55")
+
+-- GTK file chooser / portal dialogs
+popup("xdg-portal-filechooser", { class = "^(xdg-desktop-portal-gtk)$" }, "0.55", "0.65")
+popup("thunar-filechooser", { class = "^(thunar)$", title = "^(Open|Select|Save|Choose|New Folder|File Upload)" }, "0.55", "0.65")
+
+-- Thunar archive dialogs (Ark / xarchiver / engrampa share the same shape)
+popup("archive-dialog", { title = "^(Compress Files|Extract Files|Create Archive|Archive|Extract)" }, "0.45", "0.55")
+
+-- Screenshot / annotation UIs
+popup("satty",  { class = "^(satty)$" }, "0.70", "0.75")
+popup("swappy", { class = "^(swappy)$" }, "0.70", "0.75")
+
+-- Polkit authentication popups — pinned so they can't end up behind a window
 hl.window_rule({
-    name  = "float-pavucontrol",
-    match = { class = "^(pavucontrol)$" },
+    name  = "pin-polkit",
+    match = { class = ".*-authentication-agent-1$" },
+    pin   = true,
     float = true,
+    center = true,
+    size  = { "(monitor_w*0.40)", "(monitor_h*0.45)" },
 })
 
-hl.window_rule({
-    name  = "float-nm-connection-editor",
-    match = { class = "^(nm-connection-editor)$" },
-    float = true,
-})
-
+-- Picture-in-picture — floated and pinned across workspaces
 hl.window_rule({
     name  = "float-pip",
     match = { title = "^(Picture-in-Picture)$" },

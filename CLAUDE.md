@@ -20,12 +20,14 @@ Every tool we configure together must have its dotfile **here**. Never edit conf
 | Waybar | `waybar/` | `~/.config/waybar/` |
 | Waypaper | `waypaper/` | `~/.config/waypaper/` |
 | Wallust | `wallust/` | `~/.config/wallust/` |
+| Cava | `cava/config` | `~/.config/cava/config` |
 | Swaync | `swaync/` | `~/.config/swaync/` |
 | Starship | `starship/starship.toml` | `~/.config/starship.toml` |
 | Lazygit | `lazygit/` | `~/.config/lazygit/` |
 | btop | `btop/` | `~/.config/btop/` |
 | Hyprlock | `hyprland/hyprlock.conf` | `~/.config/hypr/hyprlock.conf` |
 | Hypridle | `hyprland/hypridle.conf` | `~/.config/hypr/hypridle.conf` |
+| hyprsunset | `hyprland/hyprsunset.conf` | `~/.config/hypr/hyprsunset.conf` |
 | hyprqt6engine | `hyprland/hyprqt6engine.conf` | `~/.config/hypr/hyprqt6engine.conf` |
 | Qt5ct | `qt5ct/` | `~/.config/qt5ct/` |
 | Qt6ct | `qt6ct/` | `~/.config/qt6ct/` |
@@ -49,6 +51,14 @@ Bash/POSIX aliases and helper functions shared across all environments. Sourced 
 ## Dynamic theming (wallust)
 
 Changing the wallpaper re-themes the whole desktop: waypaper runs `wallust/apply-theme.sh` via `post_command`, which runs `wallust` and reloads waybar/swaync/kitty/hyprland. Wallust renders `wallust/templates/*` into `generated-colors.*` files inside `~/.config/{hypr,waybar,rofi,swaync,kitty,alacritty}` — these are **gitignored, machine-specific** files. Style files define a static Catppuccin fallback first and `@import`/`include` the generated file after it (last definition wins). Never hand-edit `generated-colors.*`; run `apply-theme.sh --seed` to restore fallbacks.
+
+## Night light (hyprsunset)
+
+`hyprland/hyprsunset.conf` holds time-based profiles. hyprsunset applies the profile matching the current time at startup and swaps to the next one when the clock hits it, so no systemd timer is involved — hyprland.lua autostarts it. `hyprland/scripts/nightlight.sh` (bound to `Super+Shift+M`) is a manual override that sticks until `hyprctl hyprsunset reset` or the next profile swap.
+
+## cava in the bar
+
+Arch's waybar is built with `-Dcava=disabled`, so the native `cava` module is unavailable — the bar uses `custom/cava` running `waybar/scripts/cava.sh`. cava's normal terminal output cannot be piped (it emits ANSI escapes unconditionally and asks stdout for a window size), so `cava/config` switches it to `method = raw` + `data_format = ascii`: one digit (0-7) per bar, which the wrapper maps to block glyphs. Colors live in `waybar/style.css` (`#custom-cava`), which inherits the wallpaper palette. Never switch the cava config to `noncurses` without also changing the wrapper.
 
 ## install.md
 

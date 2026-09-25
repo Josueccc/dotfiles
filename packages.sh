@@ -151,7 +151,7 @@ arch)
         # auth & keyring
         polkit-gnome gnome-keyring seahorse openssh
         # audio
-        pipewire wireplumber pamixer playerctl pavucontrol
+        pipewire wireplumber pamixer playerctl pavucontrol cava
         # network
         networkmanager network-manager-applet nm-connection-editor
         # bluetooth
@@ -220,7 +220,7 @@ fedora)
         # auth & keyring
         polkit-gnome gnome-keyring seahorse openssh
         # audio
-        pipewire wireplumber pamixer playerctl pavucontrol
+        pipewire wireplumber pamixer playerctl pavucontrol cava
         # network  (Fedora uses uppercase NetworkManager package names)
         NetworkManager NetworkManager-applet nm-connection-editor
         # bluetooth

@@ -149,6 +149,7 @@ tooltip label {
 #cpu,
 #memory,
 #battery,
+#custom-cava,
 #tray,
 #custom-power {
     padding: 0 10px;
@@ -165,7 +166,8 @@ tooltip label {
 #pulseaudio:hover,
 #cpu:hover,
 #memory:hover,
-#battery:hover {
+#battery:hover,
+#custom-cava:hover {
     background: alpha(@surface0, 0.8);
 }
 
@@ -253,6 +255,19 @@ tooltip label {
 @keyframes battery-blink {
     from { color: @red; background: transparent; }
     to   { color: @base; background: alpha(@red, 0.3); border-radius: 8px; }
+}
+
+/* ── Audio visualizer (cava) ──────────────────────────────────────────── */
+/* Colour comes from the palette above, so the bars follow the wallpaper. */
+#custom-cava {
+    padding: 0 12px;
+    color: @mauve;
+    font-size: 12px;
+    letter-spacing: -1px;
+}
+
+#custom-cava.muted {
+    color: @overlay0;
 }
 
 /* ── Power button ─────────────────────────────────────────────────────────── */

@@ -49,7 +49,7 @@ These have no dotfile tracked in this repo — install manually or via package m
 - pipewire + wireplumber (audio)
 - hyprlock (lock screen — config tracked in hyprland/hyprlock.conf)
 - hypridle (idle daemon for auto-lock/suspend — config tracked in hyprland/hypridle.conf)
-- hyprsunset (blue light filter / night mode — toggle via keybind)
+- hyprsunset (blue light filter / night mode — config tracked in hyprland/hyprsunset.conf, time-based profiles, toggle with `Super+Shift+M`)
 - hyprpicker (Wayland color picker)
 - cliphist (clipboard history daemon for Wayland)
 - wl-clipboard (wl-copy / wl-paste CLI clipboard tools)
@@ -77,6 +77,7 @@ These have no dotfile tracked in this repo — install manually or via package m
 - pamixer (CLI volume control — used in waybar/keybinds)
 - playerctl (MPRIS media player control — play/pause/next via keybind)
 - pavucontrol (GUI PipeWire/PulseAudio mixer)
+- cava (terminal audio visualizer — rendered in the waybar, config tracked in cava/)
 
 ## Network
 

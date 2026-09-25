@@ -24,10 +24,10 @@ The foundation. Full wallpaper-driven theming pipeline, verified live:
 ## 🟢 Phase 1 — Quick wins (1–2h total, zero new architecture)
 
 - [x] **1.1 Commit Phase 0** — done (rizz work in one commit, unrelated pending edits in another)
-- [ ] **1.2 Verify + polish hyprlock** — not yet seen live (`Super+Ctrl+L`): clock shadow, pill input, lock glyph, dim level
-- [ ] **1.3 hyprsunset night light** — installed already; schedule a warm shift after dark via a systemd user timer (hyprland `exec-once` can't be time-gated)
-- [ ] **1.4 cava in the waybar** — ASCII visualizer next to the tray; `cava` is in the repos, add to `packages.sh` + a `custom/cava` module
-- [ ] **1.5 Window rule polish** — float + center every popup in `hyprland.lua` (blueman, thunar archive dialogs, pavucontrol sizing, screenshot UI)
+- [~] **1.2 hyprlock** — polished in code: lock glyph, `hide_cursor`, custom fade curve, hint line, brighter/sharper screenshot bg. **needs a live look** (`Super+Ctrl+L`) — hyprlock has no config-verify mode, so eyeball it
+- [x] **1.3 hyprsunset night light** — done, but *not* with a timer: hyprsunset 0.4 has native time-based profiles (`hyprland/hyprsunset.conf`, 00:00 identity / 18:45 5000K / 22:30 3500K), autostarted from `hyprland.lua`. `Super+Shift+M` = manual override via `hyprland/scripts/nightlight.sh`
+- [~] **1.4 cava in the waybar** — wired: `custom/cava` module + `waybar/scripts/cava.sh` + `cava/config` (raw/ascii mode, digits→block glyphs, colored from the wallpaper palette in CSS). **needs `sudo pacman -S cava`** — not installed yet, so it's hidden by `exec-if`
+- [x] **1.5 Window rule polish** — done: `popup()` helper in `hyprland.lua` floats/sizes/centers pavucontrol, nm-connection-editor, blueman, GTK/portal file choosers, thunar archive dialogs, satty/swappy; polkit popups are pinned too
 
 ## 🟡 Phase 2 — Accent propagation (2–3h) — highest wow/effort ratio left
 
@@ -45,7 +45,7 @@ The entire app UI (GTK, Qt, Firefox, Discord…) still ignores the wallpaper.
 ## 🟣 Phase 4 — Apps & eye candy (1–2h each)
 
 - [ ] **4.1 Live video wallpapers** — `mpvpaper` replaces the `swaybg` waypaper backend
-- [ ] **4.2 awww transitions** — awww (swww successor) is already installed; add fade/swoosh transitions in `waypaper-picker.sh`
+- [ ] **4.2 awww transitions** — awww is installed, **swww is not** (removed since Phase 0), and waypaper's `backend = swaybg` still points at the pre-swww daemon. So today the picker silently falls through to `waypaper --wallpaper`: no transition, and theming only works because waypaper fires `post_command`. When this gets done, the fast path must call `wallust/apply-theme.sh "$chosen"` itself, otherwise picking a wallpaper stops re-theming the desktop
 - [ ] **4.3 Terminal flex** — transparency tuned to the blur, nicer cursor, tmux statusline recolored to the live palette
 - [ ] **4.4 hypridle chain** — DPMS off → screen off → lock, fading into the blurred lock screen
 
@@ -77,6 +77,7 @@ The entire app UI (GTK, Qt, Firefox, Discord…) still ignores the wallpaper.
 
 ## How to use this file
 
+- `[x]` done · `[~]` landed in the repo but still needs a live look on screen · `[ ]` not started
 - Tick boxes as you land items
 - New ideas go to the bottom of the matching phase
 - Delete phases once fully done (Phase 0 kept as history)

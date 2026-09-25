@@ -22,6 +22,7 @@
         "cpu",
         "memory",
         "battery",
+        "custom/cava",
         "tray",
         "custom/power"
     ],
@@ -187,6 +188,21 @@
         "format-icons": ["󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"],
         "tooltip-format": "{timeTo}\nPower: {power} W",
         "on-click": "~/.config/waybar/scripts/power-profile.sh"
+    },
+
+    // ── Audio visualizer (cava) ────────────────────────────────────────────
+    // Runs cava in raw/ascii mode (waybar/scripts/cava.sh maps the digits to
+    // block glyphs). Hidden automatically when cava isn't installed.
+    // left-click → pavucontrol      scroll → volume
+    "custom/cava": {
+        "format": "{}",
+        "exec": "~/.config/waybar/scripts/cava.sh",
+        "exec-if": "which cava",
+        "escape": false,
+        "restart-interval": 5,
+        "on-click": "pavucontrol",
+        "on-scroll-up": "pamixer --allow-boost increase 5",
+        "on-scroll-down": "pamixer --allow-boost decrease 5"
     },
 
     // ── System tray ───────────────────────────────────────────────────────

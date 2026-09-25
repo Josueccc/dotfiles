@@ -1,0 +1,63 @@
+# cava — config tracked in this repo, symlinked to ~/.config/cava/config by install.sh
+#
+# This file is tuned for the waybar visualiser (waybar/scripts/cava.sh), NOT for
+# running cava in a terminal:
+#
+#   * [output] method = raw  →  bar heights as plain ASCII digits on stdout.
+#     cava's normal (noncurses) output cannot be piped: it emits ANSI/cursor
+#     escapes unconditionally and reads its window size from stdout, which a
+#     pipe does not have. Raw mode is the only pipe-safe output.
+#   * raw mode forces bar_width = 1 / bar_spacing = 0, so each bar is one
+#     character. The wrapper script maps digits 0-7 to the block glyphs.
+#   * [color] is dead in raw mode — the visualiser is coloured in
+#     waybar/style.css (#custom-cava), which follows the wallpaper palette.
+#
+# For a normal terminal session, comment the [output] block back to
+# `method = noncurses` and set your colours under [color].
+
+[general]
+
+# Auto reload when this file changes. Waybar is restarted on wallpaper changes,
+# which restarts cava too, so leave this off.
+live-config = 0
+
+framerate = 60
+
+# 1 = normal auto-sensitivity; higher values react faster (and clip more).
+autosens = 1
+sensitivity = 100
+
+# Number of bars. 14 single-char bars ≈ 100px, sits nicely next to the tray.
+bars = 14
+bar_width = 1
+bar_spacing = 0
+
+lower_cutoff_freq = 50
+higher_cutoff_freq = 10000
+
+[input]
+
+# pulse, not pipewire: the pulse client API is served by pipewire-pulse and
+# there is no startup race when waybar comes up before/with the audio server.
+# source = auto → the monitor of the default sink (i.e. what you hear).
+method = pulse
+source = auto
+
+[output]
+
+method = raw
+raw_target = /dev/stdout
+data_format = ascii
+
+# 0-7 inclusive → 8 discrete levels, one per block glyph.
+ascii_max_range = 7
+
+# 0 = no separator between bars (the wrapper adds no spacing either).
+bar_delimiter = 0
+
+[smoothing]
+
+# int 0-100, default 77. Lower = twitchier, which suits a 38px status bar.
+noise_reduction = 60
+monstercat = 0
+waves = 0
