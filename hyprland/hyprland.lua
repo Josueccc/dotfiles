@@ -29,7 +29,6 @@ local menu        = "rofi -show drun"
 -------------------
 
 hl.on("hyprland.start", function()
-    hl.exec_cmd("swww-daemon")
     hl.exec_cmd("waybar")
     hl.exec_cmd("swaync")
     hl.exec_cmd("waypaper --restore")
@@ -55,16 +54,33 @@ hl.env("STEAM_FORCE_DESKTOPUI_SCALING", "1.25")
 ---- LOOK AND FEEL ----
 -----------------------
 
+-- Border colors: wallpaper-driven via wallust (~/.config/hypr/generated-colors.lua),
+-- Catppuccin blue→mauve gradient as fallback when the file doesn't exist yet.
+local border_active   = { colors = { "rgba(89b4faee)", "rgba(cba6f7ee)" }, angle = 45 }
+local border_inactive = "rgba(595959aa)"
+
+local gen_colors = os.getenv("HOME") .. "/.config/hypr/generated-colors.lua"
+local fh = io.open(gen_colors, "r")
+if fh then
+    fh:close()
+    local ok, gen = pcall(dofile, gen_colors)
+    if ok and type(gen) == "table" and gen.color4 and gen.color5 then
+        local function rgba(hex, alpha) return "rgba(" .. hex:gsub("#", "") .. alpha .. ")" end
+        border_active   = { colors = { rgba(gen.color4, "ee"), rgba(gen.color5, "ee") }, angle = 45 }
+        border_inactive = rgba(gen.color8 or "#595959", "aa")
+    end
+end
+
 hl.config({
     general = {
         gaps_in  = 10,
         gaps_out = 20,
 
-        border_size = 1,
+        border_size = 2,
 
         col = {
-            active_border   = { colors = {"rgba(89b4faee)", "rgba(cba6f7ee)"}, angle = 45 },
-            inactive_border = "rgba(595959aa)",
+            active_border   = border_active,
+            inactive_border = border_inactive,
         },
 
         resize_on_border = true,
@@ -73,23 +89,30 @@ hl.config({
     },
 
     decoration = {
-        rounding = 10,
+        rounding = 12,
 
         active_opacity   = 1.0,
         inactive_opacity = 0.95,
 
         shadow = {
             enabled      = true,
-            range        = 8,
+            range        = 18,
             render_power = 3,
-            color        = "rgba(1a1a1aee)",
+            color        = "rgba(00000066)",
         },
 
         blur = {
-            enabled  = false,
-            size     = 4,
-            passes   = 1,
-            vibrancy = 0.1696,
+            enabled           = true,
+            size              = 6,
+            passes            = 2,
+            ignore_opacity    = true,
+            new_optimizations = true,
+            xray              = false,
+            noise             = 0.02,
+            contrast          = 0.9,
+            brightness        = 0.8,
+            vibrancy          = 0.25,
+            popups            = true,
         },
     },
 
@@ -98,14 +121,28 @@ hl.config({
     },
 })
 
-hl.curve("easeOut", { type = "bezier", points = { {0.05, 0.9}, {0.1, 1.05} } })
-hl.curve("linear",  { type = "bezier", points = { {0.0,  0.0}, {1.0, 1.0}  } })
+-- Bezier curves
+hl.curve("wind",   { type = "bezier", points = { {0.05, 0.9},  {0.1, 1.05} } })
+hl.curve("winIn",  { type = "bezier", points = { {0.1,  1.1},  {0.1, 1.1}  } })
+hl.curve("winOut", { type = "bezier", points = { {0.3, -0.3},  {0,   1}    } })
+hl.curve("liner",  { type = "bezier", points = { {1,    1},    {1,   1}    } })
 
-hl.animation({ leaf = "windows",    enabled = true, speed = 5,  bezier = "easeOut" })
-hl.animation({ leaf = "windowsOut", enabled = true, speed = 5,  bezier = "default", style = "popin 80%" })
-hl.animation({ leaf = "border",     enabled = true, speed = 10, bezier = "default" })
-hl.animation({ leaf = "fade",       enabled = true, speed = 5,  bezier = "default" })
-hl.animation({ leaf = "workspaces", enabled = true, speed = 5,  bezier = "default" })
+hl.animation({ leaf = "windows",     enabled = true, speed = 6,  bezier = "wind",  style = "popin 87%" })
+hl.animation({ leaf = "windowsIn",   enabled = true, speed = 6,  bezier = "winIn", style = "popin 87%" })
+hl.animation({ leaf = "windowsOut",  enabled = true, speed = 5,  bezier = "winOut", style = "popin 87%" })
+hl.animation({ leaf = "windowsMove", enabled = true, speed = 5,  bezier = "wind" })
+hl.animation({ leaf = "border",      enabled = true, speed = 10, bezier = "default" })
+-- Rotating gradient on the active border
+hl.animation({ leaf = "borderangle", enabled = true, speed = 8,  bezier = "liner", style = "loop" })
+hl.animation({ leaf = "fade",        enabled = true, speed = 7,  bezier = "default" })
+hl.animation({ leaf = "workspaces",  enabled = true, speed = 6,  bezier = "wind" })
+
+-- Blur behind shell layers (bar, launcher, notifications, OSD)
+hl.layer_rule({ name = "blur-waybar",        match = { namespace = "waybar" },                      blur = true, ignore_alpha = 0.5 })
+hl.layer_rule({ name = "blur-rofi",          match = { namespace = "rofi" },                        blur = true, ignore_alpha = 0.4 })
+hl.layer_rule({ name = "blur-swaync-cc",     match = { namespace = "swaync-control-center" },       blur = true, ignore_alpha = 0.4 })
+hl.layer_rule({ name = "blur-swaync-notif",  match = { namespace = "swaync-notification-window" },  blur = true, ignore_alpha = 0.4 })
+hl.layer_rule({ name = "blur-swayosd",       match = { namespace = "swayosd" },                     blur = true, ignore_alpha = 0.4 })
 
 hl.config({
     dwindle = {
@@ -139,7 +176,8 @@ hl.config({
 
 hl.config({
     input = {
-        kb_layout    = "us, es",
+        kb_layout    = "us, latam",
+        kb_variant   = "intl,",
         follow_mouse = 1,
         sensitivity  = 0,
 
@@ -159,7 +197,7 @@ hl.config({
 local mainMod = "SUPER"
 
 hl.bind(mainMod .. " + Return", hl.dsp.exec_cmd(terminal))
-hl.bind(mainMod .. " + C",      hl.dsp.window.close())
+hl.bind(mainMod .. " + Q",      hl.dsp.window.close())
 hl.bind(mainMod .. " + M",      hl.dsp.exec_cmd("command -v hyprshutdown >/dev/null 2>&1 && hyprshutdown || hyprctl dispatch exit"))
 hl.bind(mainMod .. " + E",      hl.dsp.exec_cmd(fileManager))
 hl.bind(mainMod .. " + V",      hl.dsp.window.float({ action = "toggle" }))
@@ -167,6 +205,9 @@ hl.bind(mainMod .. " + R",      hl.dsp.exec_cmd(menu))
 hl.bind(mainMod .. " + P",      hl.dsp.window.pseudo())
 hl.bind(mainMod .. " + J",      hl.dsp.layout("togglesplit"))
 hl.bind(mainMod .. " + F",      hl.dsp.window.fullscreen())
+
+-- Toggle keyboard layout (EN intl ↔ ES latam)
+hl.bind(mainMod .. " + space", hl.dsp.exec_cmd("hyprctl dispatch switchxkblayout all next"))
 
 -- Focus
 hl.bind(mainMod .. " + left",  hl.dsp.focus({ direction = "left" }))

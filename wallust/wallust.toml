@@ -1,0 +1,22 @@
+# wallust — wallpaper-driven colorscheme generator
+# https://codeberg.org/explosion-mental/wallust
+#
+# Run manually:        wallust run <image>
+# Auto-runs via:       wallust/apply-theme.sh  (waypaper post_command hook)
+
+backend     = "resized"      # fast, good quality
+color_space = "labmixed"     # best perceptual mixing
+palette     = "dark16"       # dark scheme, 16 colors extracted from the wallpaper
+check_contrast = true        # keep foreground/background readable
+threshold   = 12
+
+# Template files live in ./templates (this same directory).
+# Targets land inside ~/.config/* — most of those dirs are symlinks into this
+# repo, so the generated files are listed in .gitignore. Do NOT commit them.
+[templates]
+hyprland  = { template = "colors-hyprland.lua",   target = "~/.config/hypr/generated-colors.lua" }
+waybar    = { template = "colors-waybar.css",     target = "~/.config/waybar/generated-colors.css" }
+rofi      = { template = "colors-rofi.rasi",      target = "~/.config/rofi/generated-colors.rasi" }
+swaync    = { template = "colors-swaync.css",     target = "~/.config/swaync/generated-colors.css" }
+kitty     = { template = "colors-kitty.conf",     target = "~/.config/kitty/generated-colors.conf" }
+alacritty = { template = "colors-alacritty.toml", target = "~/.config/alacritty/generated-colors.toml" }

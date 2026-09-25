@@ -178,3 +178,7 @@ button selected {
     border-color:       @blue;
     text-color:         @blue;
 }
+
+/* ── Wallpaper-driven palette (wallust) ─────────────────────────────────── */
+/* Redefines the vars above when the generated file exists; last definition wins. */
+@import "generated-colors.rasi"

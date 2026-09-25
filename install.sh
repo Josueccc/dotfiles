@@ -163,6 +163,7 @@ if [ "$MODE" = "desktop" ]; then
     symlink "$DOTFILES/swaync"                      "$HOME/.config/swaync"
     symlink "$DOTFILES/waybar"                      "$HOME/.config/waybar"
     symlink "$DOTFILES/waypaper"                    "$HOME/.config/waypaper"
+    symlink "$DOTFILES/wallust"                     "$HOME/.config/wallust"
     symlink "$DOTFILES/qt5ct"                       "$HOME/.config/qt5ct"
     symlink "$DOTFILES/qt6ct"                       "$HOME/.config/qt6ct"
     symlink "$DOTFILES/kvantum"                     "$HOME/.config/Kvantum"
@@ -176,6 +177,13 @@ echo "==> Sourcing custom.sh in shell configs"
 CUSTOM_LINE="[ -f \"$DOTFILES/custom.sh\" ] && source \"$DOTFILES/custom.sh\""
 source_line "$HOME/.bashrc" "$CUSTOM_LINE"
 source_line "$HOME/.zshrc"  "$CUSTOM_LINE"
+
+# ── Generated theme colors ─────────────────────────────────────────────────────
+if [ "$MODE" = "desktop" ]; then
+    echo ""
+    echo "==> Seeding fallback theme colors (wallust overwrites these later)"
+    bash "$DOTFILES/wallust/apply-theme.sh" --seed
+fi
 
 # ── Done ───────────────────────────────────────────────────────────────────────
 echo ""

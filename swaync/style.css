@@ -1,3 +1,18 @@
+/* ── Fallback palette (Catppuccin Mocha) ────────────────────────────────── */
+@define-color base      #1e1e2e;
+@define-color mantle    #181825;
+@define-color surface0  #313244;
+@define-color overlay0  #6c7086;
+@define-color subtext0  #a6adc8;
+@define-color text      #cdd6f4;
+@define-color blue      #89b4fa;
+@define-color mauve     #cba6f7;
+@define-color red       #f38ba8;
+@define-color green     #a6e3a1;
+
+/* Wallpaper-driven palette (wallust); redefines the colors above. */
+@import "generated-colors.css";
+
 * {
   all: unset;
   font-size: 14px;
@@ -11,16 +26,22 @@
 
 .notification-row:focus,
 .notification-row:hover {
-  opacity: 0.9;
+  opacity: 0.95;
 }
 
+/* Translucent on purpose — Hyprland blurs the layer behind it */
 .notification {
-  background: rgba(30, 30, 46, 0.95);
-  border: 1px solid rgba(137, 180, 250, 0.3);
-  border-radius: 8px;
-  color: #cdd6f4;
+  background: alpha(@base, 0.82);
+  border: 1px solid alpha(@blue, 0.35);
+  border-radius: 14px;
+  color: @text;
   padding: 8px;
-  margin: 4px;
+  margin: 6px 4px;
+  box-shadow: 0 4px 16px alpha(@base, 0.5);
+}
+
+.notification.critical {
+  border-color: alpha(@red, 0.6);
 }
 
 .notification-content {
@@ -28,56 +49,57 @@
 }
 
 .close-button {
-  background: rgba(243, 139, 168, 0.2);
-  border-radius: 4px;
-  color: #f38ba8;
+  background: alpha(@red, 0.2);
+  border-radius: 8px;
+  color: @red;
   min-width: 24px;
   min-height: 24px;
   margin: 4px;
 }
 
 .close-button:hover {
-  background: #f38ba8;
-  color: #1e1e2e;
+  background: @red;
+  color: @base;
 }
 
 .notification-default-action {
-  border-radius: 8px;
+  border-radius: 14px;
 }
 
 .notification-action {
-  background: rgba(137, 180, 250, 0.1);
-  border: 1px solid rgba(137, 180, 250, 0.3);
-  border-radius: 4px;
-  color: #89b4fa;
+  background: alpha(@blue, 0.12);
+  border: 1px solid alpha(@blue, 0.35);
+  border-radius: 8px;
+  color: @blue;
   margin: 2px;
 }
 
 .notification-action:hover {
-  background: #89b4fa;
-  color: #1e1e2e;
+  background: @blue;
+  color: @base;
 }
 
 .summary {
   font-weight: bold;
-  color: #cdd6f4;
+  color: @text;
 }
 
 .time {
-  color: #6c7086;
+  color: @overlay0;
   font-size: 12px;
 }
 
 .body {
-  color: #bac2de;
+  color: @subtext0;
 }
 
 .control-center {
-  background: rgba(30, 30, 46, 0.97);
-  border: 1px solid rgba(137, 180, 250, 0.2);
-  border-radius: 12px;
-  color: #cdd6f4;
-  padding: 8px;
+  background: alpha(@base, 0.85);
+  border: 1px solid alpha(@blue, 0.25);
+  border-radius: 16px;
+  color: @text;
+  padding: 10px;
+  box-shadow: 0 8px 24px alpha(@mantle, 0.6);
 }
 
 .control-center-list {
@@ -85,7 +107,7 @@
 }
 
 .control-center-list-placeholder {
-  color: #6c7086;
+  color: @overlay0;
 }
 
 .floating-notifications {
@@ -97,23 +119,23 @@
 }
 
 .widget-title {
-  color: #cdd6f4;
+  color: @text;
   font-size: 16px;
   font-weight: bold;
   padding: 8px;
 }
 
 .widget-title > button {
-  background: rgba(243, 139, 168, 0.15);
-  border: 1px solid rgba(243, 139, 168, 0.3);
-  border-radius: 6px;
-  color: #f38ba8;
-  padding: 4px 8px;
+  background: alpha(@red, 0.15);
+  border: 1px solid alpha(@red, 0.35);
+  border-radius: 8px;
+  color: @red;
+  padding: 4px 10px;
 }
 
 .widget-title > button:hover {
-  background: #f38ba8;
-  color: #1e1e2e;
+  background: @red;
+  color: @base;
 }
 
 .widget-dnd {
@@ -121,18 +143,18 @@
 }
 
 .widget-dnd > switch {
-  background: rgba(108, 112, 134, 0.3);
+  background: alpha(@overlay0, 0.3);
   border-radius: 12px;
-  border: 1px solid rgba(108, 112, 134, 0.5);
+  border: 1px solid alpha(@overlay0, 0.5);
 }
 
 .widget-dnd > switch:checked {
-  background: rgba(137, 180, 250, 0.4);
-  border-color: #89b4fa;
+  background: alpha(@blue, 0.5);
+  border-color: @blue;
 }
 
 .widget-dnd > switch slider {
-  background: #cdd6f4;
+  background: @text;
   border-radius: 10px;
   min-width: 20px;
   min-height: 20px;

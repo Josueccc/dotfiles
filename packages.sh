@@ -166,6 +166,7 @@ arch)
         wlogout
         swayosd
         waypaper
+        wallust
         grimblast-git
         catppuccin-gtk-theme-mocha
         bibata-cursor-theme

@@ -19,6 +19,7 @@ Every tool we configure together must have its dotfile **here**. Never edit conf
 | Fish | `fish/` | `~/.config/fish/` |
 | Waybar | `waybar/` | `~/.config/waybar/` |
 | Waypaper | `waypaper/` | `~/.config/waypaper/` |
+| Wallust | `wallust/` | `~/.config/wallust/` |
 | Swaync | `swaync/` | `~/.config/swaync/` |
 | Starship | `starship/starship.toml` | `~/.config/starship.toml` |
 | Lazygit | `lazygit/` | `~/.config/lazygit/` |
@@ -44,6 +45,10 @@ Every tool we configure together must have its dotfile **here**. Never edit conf
 ## custom.sh
 
 Bash/POSIX aliases and helper functions shared across all environments. Sourced from `~/.bashrc` and `~/.zshrc` by `install.sh`. Fish users: fish has its own function/alias system — put fish-specific stuff under `fish/functions/` or `fish/conf.d/`.
+
+## Dynamic theming (wallust)
+
+Changing the wallpaper re-themes the whole desktop: waypaper runs `wallust/apply-theme.sh` via `post_command`, which runs `wallust` and reloads waybar/swaync/kitty/hyprland. Wallust renders `wallust/templates/*` into `generated-colors.*` files inside `~/.config/{hypr,waybar,rofi,swaync,kitty,alacritty}` — these are **gitignored, machine-specific** files. Style files define a static Catppuccin fallback first and `@import`/`include` the generated file after it (last definition wins). Never hand-edit `generated-colors.*`; run `apply-theme.sh --seed` to restore fallbacks.
 
 ## install.md
 

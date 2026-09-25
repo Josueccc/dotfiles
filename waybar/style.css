@@ -19,6 +19,10 @@
 @define-color blue      #89b4fa;
 @define-color lavender  #b4befe;
 
+/* Wallpaper-driven palette (wallust). Loaded after the fallback palette above —
+ * the generated file redefines the same color names when it exists. */
+@import "generated-colors.css";
+
 /* ── Global reset ─────────────────────────────────────────────────────────── */
 * {
     border: none;
@@ -34,14 +38,22 @@ window#waybar {
     color: @text;
 }
 
-/* ── Three floating pills ──────────────────────────────────────────────────── */
+/* ── Floating islands ────────────────────────────────────────────────────── */
 .modules-left,
-.modules-center,
-.modules-right {
-    background: alpha(@base, 0.92);
-    border-radius: 12px;
+.modules-center {
+    background: alpha(@base, 0.88);
+    border-radius: 14px;
     border: 1px solid alpha(@surface1, 0.5);
     padding: 0 4px;
+    margin: 2px 4px;
+}
+
+/* right side: transparent container, each module is its own pill */
+.modules-right {
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin: 0 2px;
 }
 
 /* ── Tooltip ──────────────────────────────────────────────────────────────── */
@@ -93,7 +105,7 @@ tooltip label {
 #workspaces button.active {
     background: linear-gradient(135deg, @blue, @mauve);
     color: @base;
-    min-width: 30px;
+    min-width: 36px;
 }
 
 #workspaces button.urgent {
@@ -128,7 +140,7 @@ tooltip label {
     font-size: 14px;
 }
 
-/* ── Right modules — shared ───────────────────────────────────────────────── */
+/* ── Right modules — one pill each ──────────────────────────────────────── */
 #custom-notification,
 #bluetooth,
 #network,
@@ -137,10 +149,13 @@ tooltip label {
 #cpu,
 #memory,
 #battery,
-#tray {
+#tray,
+#custom-power {
     padding: 0 10px;
-    margin: 4px 1px;
-    border-radius: 8px;
+    margin: 2px 3px;
+    border-radius: 12px;
+    background: alpha(@base, 0.88);
+    border: 1px solid alpha(@surface1, 0.5);
 }
 
 #custom-notification:hover,
@@ -242,16 +257,14 @@ tooltip label {
 
 /* ── Power button ─────────────────────────────────────────────────────────── */
 #custom-power {
-    padding: 0 10px;
-    margin: 4px 2px 4px 4px;
-    border-radius: 8px;
+    padding: 0 12px;
     color: @red;
     font-size: 16px;
-    border-left: 1px solid @surface1;
 }
 
 #custom-power:hover {
     background: alpha(@red, 0.2);
+    border-color: alpha(@red, 0.6);
 }
 
 /* ── System tray ──────────────────────────────────────────────────────────── */

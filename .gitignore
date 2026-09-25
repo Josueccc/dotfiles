@@ -3,3 +3,10 @@
 
 # tmux plugin manager — plugins are installed at runtime, not tracked
 .tmux/plugins/
+
+# wallust-generated palettes (machine-specific, overwritten on wallpaper change)
+waybar/generated-colors.css
+rofi/generated-colors.rasi
+swaync/generated-colors.css
+kitty/generated-colors.conf
+alacritty/generated-colors.toml
