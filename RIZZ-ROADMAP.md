@@ -47,7 +47,7 @@ The entire app UI (GTK, Qt, Firefox, Discord…) still ignores the wallpaper.
 - [ ] **4.1 Live video wallpapers** — `mpvpaper` replaces the `swaybg` waypaper backend
 - [x] **4.2 awww transitions** — done. `backend = awww` in `waypaper/config.ini` (waypaper 2.9 has a native awww backend: it starts the daemon, kills the old painter, reads the `swww_transition_*` keys). `wave` @30° / 1.2s / 60fps, verified animating via mid-transition screenshots. Picker now goes through `waypaper --wallpaper` so `post_command` → `apply-theme.sh` keeps firing; the awww/swaybg fallbacks call it themselves. Also fixed `folder` (was `~/Downloads`, empty → now `~/Pictures/wallpapers`)
 - [ ] **4.3 Terminal flex** — transparency tuned to the blur, nicer cursor, tmux statusline recolored to the live palette
-- [ ] **4.4 hypridle chain** — DPMS off → screen off → lock, fading into the blurred lock screen
+- [~] **4.4 hypridle chain** — the *timing* is fixed (5 min dim → 15 min lock → 25 min dpms off → 45 min suspend, was locking at 6). The **fade** is still missing: hypridle 0.1.8 is the newest on Arch and rejects the `dpms` listener key, so the "fade into the blurred lock screen" wants a brightness ramp script in `on-timeout` instead — or a newer hypridle
 
 ## ⚫ Phase 5 — Bleed edge / someday
 
@@ -70,7 +70,9 @@ The entire app UI (GTK, Qt, Firefox, Discord…) still ignores the wallpaper.
 ## 📌 Session notes (learned the hard way)
 
 - **`swww` is dead** — it was archived upstream and isn't installed; `awww` is the successor and is what waypaper drives now
-- **`hypridle` locks after 6 min** (`timeout = 360` → `loginctl lock-session`). Great for a laptop at a desk, hostile during a long build. The DPMS-off listener is 15 min and suspend is 30
+- **`hypridle` timed the lock at 6 min** (`timeout = 360`), which fired during a long build and hid the desktop. Now 5 min dim → 15 min lock → 25 min dpms off → 45 min suspend. Suspend moved to last on purpose: at the old 30 min it could suspend mid-build while the screen was still lit
+- **hypridle 0.1.8 is the current Arch version** and it does *not* support the newer `dpms` / `check_interval` listener keys (verified by feeding it deliberately bogus keys and watching which ones it rejects). The fade/DPMS chain from 4.4 needs a newer hypridle, so for now it's a plain `hyprctl dispatch dpms off` on a timer
+- **`waypaper/config.ini` is gitignored** — waypaper rewrites the whole file on every pick. Settings moved to `waypaper/config.ini.template`, seeded by install.sh; volatile keys go to waypaper's own state file via `use_xdg_state = True`
 - **waybar is restarted** by `wallust/apply-theme.sh` on every wallpaper change, so a cava launched by waybar dies with it — the wrapper script reaps stale ones on startup
 - **waybar's cava module is not available on Arch** (upstream builds with `-Dcava=disabled`), hence `custom/cava`
 - **cava's normal output can't be piped** — ANSI escapes and a stdout window-size probe. Raw/ascii mode is the only pipe-safe path

@@ -186,6 +186,54 @@ if [ "$MODE" = "desktop" ]; then
     echo ""
     echo "==> Seeding fallback theme colors (wallust overwrites these later)"
     bash "$DOTFILES/wallust/apply-theme.sh" --seed
+
+    # waypaper rewrites config.ini on every wallpaper change, so the live file is
+    # gitignored and seeded from a template instead. The template only fills in
+    # what is missing, so a wallpaper you already picked survives a re-run.
+    echo ""
+    echo "==> Seeding waypaper config from template"
+    if [ -f "$DOTFILES/waypaper/config.ini.template" ]; then
+        if [ ! -f "$HOME/.config/waypaper/config.ini" ]; then
+            cp "$DOTFILES/waypaper/config.ini.template" "$HOME/.config/waypaper/config.ini"
+            green "  seeded: $HOME/.config/waypaper/config.ini"
+        else
+            # Keep the machine's volatile keys, take everything else from the
+            # template: wallpaper, backend, folder, monitors and style paths.
+            python3 - "$DOTFILES/waypaper/config.ini.template" "$HOME/.config/waypaper/config.ini" <<'PY'
+import configparser, sys
+
+template_path, live_path = sys.argv[1], sys.argv[2]
+keep = ("wallpaper", "backend", "folder", "monitors", "stylesheet", "keybindings",
+        "wallpaperengine_folder", "wallpaperengine_socket", "use_xdg_state")
+
+live = configparser.ConfigParser()
+live.read(live_path)
+
+tpl = configparser.ConfigParser()
+tpl.read(template_path)
+
+if not live.has_section("Settings"):
+    live.add_section("Settings")
+
+changed = []
+for key, value in tpl["Settings"].items():
+    if key in keep and live.has_option("Settings", key):
+        continue
+    if not live.has_option("Settings", key) or live["Settings"][key] != value:
+        live.set("Settings", key, value)
+        changed.append(key)
+
+if changed:
+    with open(live_path, "w") as fh:
+        live.write(fh)
+    print(f"  updated: {live_path} ({', '.join(changed)})")
+else:
+    print(f"  ok: {live_path} (already up to date)")
+PY
+        fi
+    else
+        yellow "  skip (missing): $DOTFILES/waypaper/config.ini.template"
+    fi
 fi
 
 # ── Done ───────────────────────────────────────────────────────────────────────

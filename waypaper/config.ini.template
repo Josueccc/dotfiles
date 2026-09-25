@@ -1,0 +1,61 @@
+# waypaper template — seeded to waypaper/config.ini by install.sh.
+#
+# Why a template: waypaper rewrites config.ini in full on every wallpaper
+# change, so tracking the live file means a dirty tree after every pick. The
+# volatile keys (wallpaper, backend, folder, monitors) are kept out of here and
+# live in waypaper's own state file instead — use_xdg_state = True below is what
+# does that. Editing the template and re-running install.sh updates the live
+# file; edit the live file directly if you want to experiment.
+#
+# Only the keys this setup actually depends on are listed. waypaper fills in the
+# rest with its defaults on first save.
+
+[Settings]
+language = en
+
+# Where the picker looks, and what the GUI shows. Has to match
+# WALLPAPER_DIR in waybar/scripts/wallpaper-picker.sh.
+folder = ~/Pictures/wallpapers
+
+# awww drives the wallpaper and does the transitions. waypaper 2.9 speaks it
+# natively: it starts awww-daemon, kills the previous painter (swaybg,
+# hyprpaper, swww-daemon) and builds the transition from the swww_transition_*
+# keys below — yes, still called swww, but it drives awww too.
+backend = awww
+
+monitors = All
+fill = fill
+sort = name
+color = #ffffff
+
+# Re-theme everything on every wallpaper change. This is the hook the whole
+# wallust pipeline hangs off — without it, changing the wallpaper stops
+# updating the bar, rofi, swaync and the terminal colors.
+post_command = $HOME/.config/wallust/apply-theme.sh $wallpaper
+
+# Wave ("swoosh") transition. Other types: fade (bezier-driven), wipe,
+# grow/center/any/outer (circle, uses transition_pos), random.
+# swww_transition_angle is only used by wipe and wave.
+swww_transition_type = wave
+swww_transition_angle = 30
+swww_transition_duration = 1.2
+swww_transition_fps = 60
+swww_transition_step = 20
+swww_filter = Lanczos3
+
+# Keep the volatile keys out of config.ini and in ~/.local/state/waypaper/.
+# Without this, config.ini gets rewritten on every pick.
+use_xdg_state = True
+
+subfolders = False
+all_subfolders = False
+show_hidden = False
+show_gifs_only = False
+show_exif = False
+show_path_in_tooltip = True
+zen_mode = False
+number_of_columns = 4
+
+# Slideshow (off — the picker is the interface)
+slideshow_enabled = False
+slideshow_interval = 60

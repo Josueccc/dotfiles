@@ -10,3 +10,10 @@ rofi/generated-colors.rasi
 swaync/generated-colors.css
 kitty/generated-colors.conf
 alacritty/generated-colors.toml
+
+# waypaper rewrites config.ini in full on every wallpaper change, so tracking it
+# means a dirty tree after every pick. The settings that matter live in
+# config.ini.template, which install.sh seeds into place. waypaper's own state
+# file (~/.local/state/waypaper/state.ini, via use_xdg_state = True) carries the
+# volatile wallpaper/backend/folder values, so this file stays stable.
+waypaper/config.ini
