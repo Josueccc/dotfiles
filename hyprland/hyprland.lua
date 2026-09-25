@@ -47,8 +47,10 @@ end)
 
 hl.env("XCURSOR_SIZE", "24")
 hl.env("HYPRCURSOR_SIZE", "24")
-hl.env("QT_QPA_PLATFORMTHEME", "hyprqt6engine")
--- hl.env("QT_QPA_PLATFORMTHEME", "qt6ct")
+-- qt6ct, not hyprqt6engine: the packaged hyprqt6engine links against
+-- libhyprutils.so.12 and the system has 0.14.2 (soname .13), so its
+-- platformtheme plugin never loads and Qt6 apps fall back to light Breeze.
+hl.env("QT_QPA_PLATFORMTHEME", "qt6ct")
 hl.env("GKT_THEME", "Adwaita:dark")
 hl.env("STEAM_FORCE_DESKTOPUI_SCALING", "1.25")
 

@@ -62,6 +62,16 @@ Changing the wallpaper re-themes the whole desktop: waypaper runs `wallust/apply
 
 `hyprland/hypridle.conf` is a ladder: dim (5 min) → lock (15) → dpms off (25) → suspend (45). Keep suspend last — an earlier suspend will pull the machine out from under a long build while the screen is still lit. hypridle 0.1.8 is the newest on Arch and **rejects** the newer `dpms` and `check_interval` listener keys, so the display-off step is a `hyprctl dispatch dpms off` on a timer rather than a native DPMS listener. Verify a change with `hypridle -c ~/.config/hypr/hypridle.conf -v` (it prints each registered rule; the "already running" error is expected while the real daemon is up).
 
+## Qt6 theming (qt6ct, not hyprqt6engine)
+
+`hyprland/hyprland.lua` sets `QT_QPA_PLATFORMTHEME=qt6ct`. **Do not switch it back to `hyprqt6engine`**: the packaged hyprqt6engine 0.1.0 is built against `libhyprutils.so.12`, and the system ships hyprutils 0.14.2 (soname `.13`), so `libhyprqt6engine.so` fails to `dlopen`. Qt then silently falls back to the built-in light palette and every Qt6 app renders as a **white window on a dark desktop** — with no error anywhere, because `hyprqt6engine.conf` is never even read. The symptom is confusing: editing `hyprland/hyprqt6engine.conf` (color scheme, `style`) changes nothing at all.
+
+If hyprqt6engine is ever rebuilt against a current hyprutils, switching back is a one-line change and `hyprland/hyprqt6engine.conf` becomes live again.
+
+Two more traps in this area:
+- **qt6ct's `dusk.conf` is a LIGHT scheme**, despite the name. `qt6ct/qt6ct.conf` points at `qt6ct/colors/catppuccin-mocha.conf` instead, which is the Catppuccin Mocha palette written for qt6ct's fixed 22-value ColorScheme layout.
+- `kde/kdeglobals` shipped light Breeze values in its `[Colors:*]` sections; those are now dark Catppuccin, and `[KDE] ColorScheme` names the scheme.
+
 ## Night light (hyprsunset)
 
 `hyprland/hyprsunset.conf` holds time-based profiles. hyprsunset applies the profile matching the current time at startup and swaps to the next one when the clock hits it, so no systemd timer is involved — hyprland.lua autostarts it. `hyprland/scripts/nightlight.sh` (bound to `Super+Shift+M`) is a manual override that sticks until `hyprctl hyprsunset reset` or the next profile swap.

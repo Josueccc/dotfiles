@@ -29,14 +29,31 @@ The foundation. Full wallpaper-driven theming pipeline, verified live:
 - [x] **1.4 cava in the waybar** — live and reacting to audio. `custom/cava` module + `waybar/scripts/cava.sh` + `cava/config` (raw/ascii mode, digits→block glyphs, colored from the wallpaper palette in CSS). Two bugs found by testing rather than by looking: `bar_delimiter = 0` does not mean "no separator", it emits a NUL byte, and `noise_reduction` needs to be low (60) or the bars barely move
 - [x] **1.5 Window rule polish** — done: `popup()` helper in `hyprland.lua` floats/sizes/centers pavucontrol, nm-connection-editor, blueman, GTK/portal file choosers, thunar archive dialogs, satty/swappy; polkit popups are pinned too
 
-## 🟡 Phase 2 — Accent propagation (2–3h) — highest wow/effort ratio left
+## ✅ Phase 2 — Accent propagation — investigated, decision pending
 
-The entire app UI (GTK, Qt, Firefox, Discord…) still ignores the wallpaper.
+The whole app UI (GTK, Qt, Firefox, Discord…) still ignores the wallpaper. matugen 4.2.0 is
+installed and was tested against the current wallpaper. Findings:
 
-- [ ] **2.1 Run matugen** — `matugen image <wallpaper>` (in the repos) generates gtk-4/gtk-3, Kvantum, kitty, alacritty and firefox themes with proper Material You
-- [ ] **2.2 Wire into apply-theme.sh** — either (a) split brain: wallust for bar/rofi/swaync, matugen for app UIs, or (b) migrate 100% to matugen
-- [ ] **2.3 Qt side** — point `qt5ct/qt6ct` + `kvantum` at the generated palette
-- [ ] **2.4 DECISION** — stay pure-wallust, migrate to matugen, or hybrid? The one architectural fork in the road.
+- **matugen's contrast is solid**: every checked pair passes WCAG AA (on_surface/surface 14.3,
+  on_primary/primary 7.7, outline/surface 5.8), and it gives a real tonal surface ramp.
+- **wallust's palette is degenerate for some wallpapers**: for `deer-forest.jpg`, 19 CSS names
+  collapse to 14 distinct colors — `surface0/1/2` and `overlay0` are all `#A19482`, `crust == mantle`.
+  Text contrast is fine (4.8–15.7, `check_contrast` guards it) but the elevation steps vanish.
+- **The upstream matugen GTK template is useless here**: it emits adw-gtk names
+  (`accent_color`, `window_bg_color`), but this system runs `gtk-theme-name=Breeze`, whose palette
+  uses 84 differently-named variables. A hand-written Breeze template reached 84/84 coverage; it is
+  saved at `/tmp/opencode/breeze-matugen.css` and is the main ongoing cost of going hybrid.
+- **The visual payoff is small**: thunar before/after screenshots were nearly identical, because
+  Breeze uses dark neutral surfaces for most chrome. The wallpaper shows up in accents only.
+- **matugen needs `--source-color-index 0`** in a `post_command` context, or it errors out
+  ("multiple source colors found, no preference was inputted, and a terminal was not detected").
+
+- [x] **2.1 Run matugen** — done, tested (not wired)
+- [x] **2.2 Choose the split** — pending: wallust for the shell, matugen for app UIs
+- [x] **2.3 Qt side** — done, but not via matugen: see the hyprqt6engine finding below
+- [ ] **2.4 DECISION** — hybrid or skip. My read: hybrid buys a correct tonal ramp and coherence,
+  not a dramatic visual change. The 2.3 fix alone already removed the worst offender
+
 
 ## 🔵 Phase 3 — The big swing (weekend, optional)
 
@@ -79,6 +96,9 @@ The entire app UI (GTK, Qt, Firefox, Discord…) still ignores the wallpaper.
 - **`bar_delimiter = 0` in cava means NUL, not "nothing"** — it looks like the obvious way to remove the separator and quietly corrupts the output instead. Use a printable char
 - **Playing a test tone to check cava needs `paplay`**, not `pactl play-file` (that subcommand doesn't exist) — worth remembering, since "are the bars moving?" is otherwise hard to answer
 - Verify a wallpaper change actually animated by diffing mid-transition screenshots, not by trusting exit codes — the client returns immediately and the daemon animates
+- **`hyprqt6engine` is installed but broken** — it links `libhyprutils.so.12` while the system has 0.14.2 (`.13`), so the platformtheme plugin never loads and Qt6 apps silently fall back to a *light* palette. `hyprqt6engine.conf` is dead config: editing it changes nothing. Fixed by moving Qt6 to `qt6ct` (whose plugin loads cleanly) plus a real Catppuccin scheme
+- **qt6ct's `dusk.conf` is a light scheme** — named like a dark one. Pointing `color_scheme_path` at it gives light-grey windows
+- **Single-instance Qt apps will lie to you** — a stale `breeze-settings6` kept getting re-raised, so three consecutive "the fix didn't work" results were screenshots of the *old* process. Check `/proc/<pid>/environ` and confirm the pids are really gone before trusting a before/after
 
 ## ⚡ Perf notes (GTX 1650 + Vega iGPU)
 
