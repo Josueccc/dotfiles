@@ -1,5 +1,10 @@
 source /usr/share/cachyos-fish-config/cachyos-config.fish
 
-if status is-interactive
-    # Commands to run in interactive sessions can go here
-end
+# overwrite greeting
+# potentially disabling fastfetch
+#function fish_greeting
+#    # smth smth
+#end
+
+# opencode
+fish_add_path /home/zerathul/.opencode/bin
