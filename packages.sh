@@ -142,7 +142,7 @@ arch)
         # launcher & bar
         rofi-wayland waybar
         # wallpaper & clipboard
-        swww cliphist wl-clipboard
+        awww swaybg cliphist wl-clipboard
         # brightness & portals
         brightnessctl
         xdg-desktop-portal-hyprland xdg-desktop-portal-gtk
@@ -209,7 +209,7 @@ fedora)
         # Hyprland core
         hyprland hyprlock hypridle hyprsunset hyprpicker
         # launcher, bar, notifications, wallpaper
-        rofi waybar swaync swww waypaper
+        rofi waybar swaync awww swaybg waypaper
         # screenshot & OSD
         grimblast cliphist swayosd wlogout
         # brightness & portals
