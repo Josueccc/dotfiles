@@ -11,6 +11,7 @@ swaync/generated-colors.css
 kitty/generated-colors.conf
 alacritty/generated-colors.toml
 firefox/generated-colors.css
+quickshell/generated-colors.json
 
 # matugen-generated GTK palette. It is written to ~/.config/gtk-3.0/colors.css,
 # which is outside the repo, so there is normally nothing to ignore — these entries

@@ -35,3 +35,11 @@ firefox   = { template = "colors-firefox.css",   target = "~/.dotfiles/firefox/g
 # error. See the comments inside the templates.
 tmux      = { template = "colors-tmux.conf",        target = "~/.config/tmux/generated-colors.conf" }
 tmuxstyle = { template = "colors-tmux-styles.conf", target = "~/.config/tmux/generated-styles.conf" }
+# quickshell (roadmap 3.1) is the one consumer that does NOT need a restart on a
+# wallpaper change: shell.qml reads this with a FileView + JsonAdapter and
+# watchChanges, so apply-theme.sh has no reload line for it. That is also why
+# the template is strict JSON with no comments — JsonAdapter parses it as JSON,
+# and unlike CSS or TOML there is no comment syntax that survives that. The
+# palette names and source indices are identical to colors-waybar.css on
+# purpose, so the bar and the dashboard overlay cannot drift apart.
+quickshell = { template = "colors-quickshell.json", target = "~/.config/quickshell/generated-colors.json" }

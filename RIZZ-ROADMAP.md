@@ -105,9 +105,55 @@ two idle file managers are nearly indistinguishable.
       Both browsers apply on **next launch** — there is no live reload, unlike waybar.
 
 
-## 🔵 Phase 3 — The big swing (weekend, optional)
+## 🔵 Phase 3 — Quickshell dashboard overlay (landed, overlay-only)
 
-- [ ] **3.1 Quickshell widget layer** — dashboard overlay (calendar, media player, system monitor, app launcher) summoned with one key. What the end-4/Caelestia rices run. Needs `quickshell` (AUR, heavy Qt dep tree); migrate waybar/swaync into it or keep waybar alongside.
+- [x] **3.1 Quickshell widget layer** — done, and deliberately **not** a shell
+      migration. `quickshell/shell.qml`: calendar, MPRIS media, system monitor
+      and app launcher in one `Super+D` overlay. **waybar and swaync are
+      untouched** — see the correction below.
+
+  **Two premises in the old entry were both wrong.**
+
+  *"Needs `quickshell` (AUR, heavy Qt dep tree)"* — it is in **`extra`**:
+  `0.3.1-1.1`, 1.66 MiB download / 6.08 MiB installed. It was added to
+  `PACMAN_DESKTOP` in `packages.sh`, not the AUR list. The cost of this item was
+  never the dependency.
+
+  *"Duplicates waybar for no gain"* (the deferral table) — wrong about the
+  overlay, right about the migration. Reading 0.3.1's actual type index rather
+  than going from memory, the overlap is exactly three modules and none of them
+  are the dashboard: `PanelWindow` (topbar), `Services.SystemTray`,
+  `Services.Notifications`. Everything the overlay needs is something waybar
+  cannot do at all — `DesktopEntries` (launcher), `Services.Mpris` (media +
+  art), `Hyprland` (native IPC instead of parsing `hyprctl` text),
+  `Services.UPower`, `Services.Polkit`, `Wayland.WlSessionLock`. So the
+  deferral entry is now narrowed to what it was actually protecting against:
+  **migrating the bar.** That is still deferred, deliberately.
+
+  **It follows the wallpaper better than anything else in the pipeline.** It is
+  the only consumer that needs no restart: `shell.qml` reads
+  `generated-colors.json` through a `FileView` + `JsonAdapter` with
+  `watchChanges`, so `apply-theme.sh` has no reload line for it at all. Proven
+  by re-theming a running instance to a greyscale wallpaper and pixel-sampling
+  every accent to `R=G=B`.
+
+  Verified: IPC toggle, month grid, launcher filter/icons/scroll, MPRIS against
+  VLC (including the `|| "Unknown Title"` fallbacks and the `canXyz` capability
+  gates), CPU/RAM/load. Not verified: **the keyboard** (no `wtype`/`ydotool` on
+  this machine, so `Escape`/arrows/`Enter`/type-to-filter are wired but
+  unexercised) and the blur layer rule — see the session notes.
+
+- [ ] **3.2 Absorb what quickshell does natively better** *(scope B, not
+      started)* — `Services.Polkit` as a real agent, which would delete the
+      pinned-polkit popup rules from 1.5, and `Services.UPower`, which would
+      replace `waybar/scripts/power-profile.sh`'s rofi picker. Both replace
+      shell-script hacks with real APIs. Low risk, no waybar migration.
+- [ ] **3.3 Lock-screen now-playing** *(scope B+, not started)* —
+      `Wayland.WlSessionLock` would deliver the missing half of 5.3. Note this
+      means replacing hyprlock, which Phase 1.2 tuned by hand.
+- [ ] **3.4 Waybar migration** — still deferred. The bar is already verified
+      pixel-correct on a 0.3.x API that is versioned per-minor, so the
+      regression surface is large and the payoff is zero.
 
 ## 🟣 Phase 4 — Apps & eye candy (1–2h each)
 
@@ -171,7 +217,7 @@ two idle file managers are nearly indistinguishable.
 
 - [ ] **5.1 Swap waypaper → mpvpaper** as wallpaper manager (video + static); bigger rewrite of the picker's rofi grid
 - [ ] **5.2 niri scroll-driven WM** — in the repos, ~20min test in a TTY; smoothest tiling there is
-- [ ] **5.3 Audio vibes** — always-on cava, album art in the bar, now-playing on the lock screen
+- [ ] **5.3 Audio vibes** — always-on cava, album art in the bar, now-playing on the lock screen. The lock-screen half overlaps 3.3, which would do it in quickshell instead of hyprlock
 - [ ] **5.4 Display manager theme** — SDDM/plymouth so login matches the rice
 
 ---
@@ -180,7 +226,7 @@ two idle file managers are nearly indistinguishable.
 
 | Idea | Why not |
 |---|---|
-| Quickshell/AGS full shell | Duplicates waybar for no gain |
+| Quickshell/AGS full shell | Superseded — the *overlay* shipped in 3.1, and only the bar migration is still deferred (3.4) |
 | GTK4 libadwaita rewrite | Breaks apps |
 | Custom C++/shader window effects | Perf on the GTX 1650, high maintenance |
 | Rivals-style anything | Not a real thing, ignore it |
@@ -232,12 +278,20 @@ two idle file managers are nearly indistinguishable.
 - **A read-modify-write behind a keypress loses presses, and an intermittent race reads as a flaky key** — two toggles that both read the old value write the same answer. It reproduced about one time in three, so the first two attempts to catch it *didn't*, and "press it again slower" is the only symptom. Serialise it (`flock`) and verify with *simultaneous* invocations over several rounds; a sequential test cannot see the bug
 - **"US international" is a trap in a Latin-American keyboard layout** — `kb_variant = "intl,"` makes ñ/´ dead keys, so typing a Spanish word emits modifier-then-letter and looks like a broken keyboard. Plain `us` is the sane default; the variant only earns its place if you deliberately want compose-style accents
 - **A rotation that appends a separator accumulates whitespace** — `" latam, us"` → `" us,  latam"` → a list that is mostly spaces after a week of keypresses. Normalise on the way out, and unit-test the transform against 1, 2 and 3 entries
+- **A QML `id` can silently lose to a Qt-internal type** — naming the palette `FileView` `id: palette` makes `palette.adapter` undefined in every binding (1322 `TypeError`s) while `Component.onCompleted` logs the adapter as alive and healthy. Binding it printed `QQuickPalette(0x…)`. The tell is that the object exists but its *properties* don't, which looks like a corrupt data file rather than a name collision
+- **A successful IPC call is not a visible window** — the overlay held its state in `property bool open` while the window had a literal `visible: false`. `qs ipc call dashboard open` returned success, the function ran, and nothing appeared. Nothing connected the state to the surface
+- **Sibling order is paint order, and a `Rectangle` sibling will hide a `Text`** — the calendar's "today" pill was declared after the day number, so the current date rendered invisible. Fixed with an explicit `z`
+- **A `Row` stops laying out if a child also sets anchors** — `anchors.right` inside a `Row` warns "Row will not function" and the row goes inert. Wrap in an `Item`
+- **`Quickshell.watchFiles` defaults to true and reloads the entire config when any file in the shell dir changes** — so a `generated-colors.json` in that directory made every wallpaper change reload the shell. It is the same trap as `hl.env`, wearing a different hat: a file-driven feature and a file-driven reload path in the same directory
+- **A CPU percentage from `/proc/stat` needs two samples** — it is cumulative jiffies, so the first tick can only set a baseline. The first two seconds read `0%`, which looks like a broken monitor
+- **OPEN: no layer-rule blur is rendering in this session, and it is not quickshell's fault.** The `blur-quickshell` rule was added for 3.1 and does nothing — but `rofi`, which has had `blur-rofi` since Phase 0, fails the same control test, with terminal text behind it perfectly sharp. `decoration:blur` is enabled (size 6, 2 passes, `new_optimizations` true), `hyprctl configerrors` is empty, and `hyprctl reload` returns `ok`. Applying a rule at runtime via `hyprctl eval "hl.layer_rule({…})"` also returns `ok` and changes nothing observable — another `ok is not a result`. Session started 09:12:57, config edited 11:27, so the usual stale-session explanation applies and **this needs a relog to test properly**. Either blur regressed at some point in Phase 0 and was never re-checked, or 0.56.2's Lua build does not re-register layer rules on reload. Note `hyprctl layerrules` does not exist on this build ("unknown request"), so there is no way to read the rules back — `hyprctl keyword` is also refused ("keyword can't work with non-legacy parsers"). Worth a dedicated item.
 
 ## ⚡ Perf notes (GTX 1650 + Vega iGPU)
 
 - Blur is the heaviest effect — if the 1650 ever renders the compositor, drop `size` to 4 / `passes` to 1 in `hyprland.lua`
 - Force GTK/Qt apps onto the **Vega iGPU** via an `env` block if you see jank; leave browsers/Steam on the 1650
 - cava in the bar is cheap (ASCII text), fine
+- **The dashboard overlay holds no timers when closed** — its clock, the MPRIS tick and the 2s /proc poll are all `running: root.open`, so a summoned-once shell idles at zero. The one exception is the `blur-quickshell` layer rule, which is a *fullscreen* 2-pass blur whenever the overlay is up; if the 1650 ever renders the compositor, that is the first thing to drop (`ignore_alpha` back to 0.4, or delete the rule)
 
 ---
 

@@ -38,6 +38,18 @@ hl.on("hyprland.start", function()
     -- Night light. hyprsunset reads hyprsunset.conf and applies the profile
     -- matching the current time, then swaps profiles on its own at their times.
     hl.exec_cmd("pkill -x hyprsunset 2>/dev/null; hyprsunset")
+    -- Dashboard overlay (roadmap 3.1). Started with no arguments, which makes
+    -- quickshell pick up ~/.config/quickshell/shell.qml as its 'default'
+    -- config; that name is what `qs ipc call` has to agree with, and the
+    -- --config flag takes a config NAME, not a path, so `qs -c ~/.config/
+    -- quickshell` is not a thing that works. pkill first so a stale instance
+    -- cannot hold the 'dashboard' IPC target — but note this block runs ONCE,
+    -- on hyprland.start. It does not re-fire on `hyprctl reload`, which
+    -- apply-theme.sh runs on every wallpaper change: verified by process start
+    -- time across an apply run. So a wallpaper change does not restart
+    -- quickshell; the palette FileView in shell.qml picks the new colours up
+    -- on its own, which is the whole point of it.
+    hl.exec_cmd("pkill -x quickshell 2>/dev/null; quickshell")
 end)
 
 
@@ -161,6 +173,17 @@ hl.layer_rule({ name = "blur-rofi",          match = { namespace = "rofi" },    
 hl.layer_rule({ name = "blur-swaync-cc",     match = { namespace = "swaync-control-center" },       blur = true, ignore_alpha = 0.4 })
 hl.layer_rule({ name = "blur-swaync-notif",  match = { namespace = "swaync-notification-window" },  blur = true, ignore_alpha = 0.4 })
 hl.layer_rule({ name = "blur-swayosd",       match = { namespace = "swayosd" },                     blur = true, ignore_alpha = 0.4 })
+-- The dashboard overlay (roadmap 3.1) is a FULLSCREEN layer surface, so unlike
+-- the rules above this one blurs the whole desktop whenever it is summoned.
+-- That is the point — it is the frosted-modal look, and it is why the card
+-- itself can stay at 0.93 alpha without terminal text reading through it.
+--
+-- ignore_alpha = 0 here, not the 0.4 the others use: those windows are small
+-- and opaque, so ignoring near-transparent pixels saves work. This surface is
+-- transparent everywhere except the card, so a 0.4 threshold would skip exactly
+-- the backdrop we want blurred. Cost is one fullscreen 2-pass blur, and only
+-- while the overlay is open — see the 1650 perf note in RIZZ-ROADMAP.md.
+hl.layer_rule({ name = "blur-quickshell",   match = { namespace = "quickshell" },                  blur = true, ignore_alpha = 0.0 })
 
 hl.config({
     dwindle = {
@@ -293,6 +316,18 @@ hl.bind(mainMod .. " + G", hl.dsp.exec_cmd("kitty -e lazygit"))
 
 -- Wallpaper picker
 hl.bind(mainMod .. " + W", hl.dsp.exec_cmd("~/.config/waybar/scripts/wallpaper-picker.sh"))
+
+-- Dashboard overlay: calendar, media, system monitor, app launcher.
+-- Toggled over IPC rather than by starting/stopping quickshell — launching the
+-- shell on every press would put a ~200ms Qt startup in the keypress, and
+-- killing it on close would throw away the MPRIS connection.
+--
+-- `qs` with no config flag is deliberate: the config sits at
+-- ~/.config/quickshell/shell.qml, which quickshell registers as 'default'.
+-- Do NOT reach for `-c ~/.config/quickshell` — -c/--config takes a config NAME
+-- and looks for ~/.config/quickshell/<name>/shell.qml, so it silently finds
+-- nothing.
+hl.bind(mainMod .. " + D", hl.dsp.exec_cmd("qs ipc call dashboard toggle"))
 
 -- Lock screen
 hl.bind(mainMod .. " + CTRL + L", hl.dsp.exec_cmd("hyprlock"))

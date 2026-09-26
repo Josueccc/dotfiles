@@ -1,0 +1,20 @@
+{
+  "base":      "{{background}}",
+  "mantle":    "{{color0}}",
+  "crust":     "{{color0}}",
+  "surface0":  "{{color8}}",
+  "surface1":  "{{color8}}",
+  "surface2":  "{{color8}}",
+  "overlay0":  "{{color8}}",
+  "subtext0":  "{{color7}}",
+  "text":      "{{foreground}}",
+  "mauve":     "{{color5}}",
+  "red":       "{{color1}}",
+  "peach":     "{{color11}}",
+  "yellow":    "{{color3}}",
+  "green":     "{{color2}}",
+  "teal":      "{{color6}}",
+  "sapphire":  "{{color14}}",
+  "blue":      "{{color4}}",
+  "lavender":  "{{color12}}"
+}

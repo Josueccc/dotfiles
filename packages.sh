@@ -141,6 +141,10 @@ arch)
         hyprland hyprlock hypridle hyprsunset hyprpicker
         # launcher & bar
         rofi-wayland waybar
+        # dashboard overlay (roadmap 3.1). In `extra`, NOT the AUR — it was
+        # listed in the roadmap as a heavy AUR Qt dep tree, which is stale.
+        # waybar and swaync stay; quickshell only draws the summoned overlay.
+        quickshell
         # wallpaper & clipboard
         awww swaybg cliphist wl-clipboard
         # brightness & portals

@@ -174,6 +174,13 @@ if [ "$MODE" = "desktop" ]; then
     symlink "$DOTFILES/waybar"                      "$HOME/.config/waybar"
     symlink "$DOTFILES/waypaper"                    "$HOME/.config/waypaper"
     symlink "$DOTFILES/wallust"                     "$HOME/.config/wallust"
+    # The dashboard overlay (roadmap 3.1). The whole directory, not just
+    # shell.qml, because quickshell requires its config to live at
+    # ~/.config/quickshell/shell.qml to be registered as the 'default'
+    # config — a bare shell.qml symlink is enough for that, but generated-
+    # colors.json has to sit next to it for Quickshell.shellPath() to find it,
+    # and the README belongs with the code.
+    symlink "$DOTFILES/quickshell"                  "$HOME/.config/quickshell"
     symlink "$DOTFILES/cava/config"                 "$HOME/.config/cava/config"
     symlink "$DOTFILES/qt5ct"                       "$HOME/.config/qt5ct"
     symlink "$DOTFILES/qt6ct"                       "$HOME/.config/qt6ct"

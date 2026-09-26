@@ -210,6 +210,21 @@ if [ "${1:-}" = "--seed" ]; then
         'set -g message-style "fg=#45475a,bg=#f9e2af,bold"' \
         'set -g message-command-style "fg=#45475a,bg=#89b4fa,bold"' \
         'set -g mode-style "fg=#45475a,bg=#f9e2af,bold"'
+
+    # quickshell dashboard palette. JSON, not CSS/TOML, because the consumer is
+    # a JsonAdapter in shell.qml — see the quickshell entry in wallust.toml for
+    # why the template carries no comments. This is the only seeded palette that
+    # is live-reloaded rather than restarted, so in practice wallust overwrites
+    # it the first time a wallpaper is picked and this copy is never read.
+    seed "$HOME/.config/quickshell/generated-colors.json" \
+        '{' \
+        '  "base": "#1e1e2e", "mantle": "#181825", "crust": "#11111b",' \
+        '  "surface0": "#313244", "surface1": "#45475a", "surface2": "#585b70",' \
+        '  "overlay0": "#6c7086", "subtext0": "#a6adc8", "text": "#cdd6f4",' \
+        '  "mauve": "#cba6f7", "red": "#f38ba8", "peach": "#fab387",' \
+        '  "yellow": "#f9e2af", "green": "#a6e3a1", "teal": "#94e2d5",' \
+        '  "sapphire": "#74c7ec", "blue": "#89b4fa", "lavender": "#b4befe"' \
+        '}'
     exit 0
 fi
 

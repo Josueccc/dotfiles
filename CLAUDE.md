@@ -55,7 +55,11 @@ Bash/POSIX aliases and helper functions shared across all environments. Sourced 
 
 ## Dynamic theming (wallust)
 
-Changing the wallpaper re-themes the whole desktop: waypaper runs `wallust/apply-theme.sh` via `post_command`, which runs `wallust` and reloads waybar/swaync/kitty/hyprland. Wallust renders `wallust/templates/*` into `generated-colors.*` files inside `~/.config/{hypr,waybar,rofi,swaync,kitty,alacritty}` — these are **gitignored, machine-specific** files. Style files define a static Catppuccin fallback first and `@import`/`include` the generated file after it (last definition wins). Never hand-edit `generated-colors.*`; run `apply-theme.sh --seed` to restore fallbacks.
+Changing the wallpaper re-themes the whole desktop: waypaper runs `wallust/apply-theme.sh` via `post_command`, which runs `wallust` and reloads waybar/swaync/kitty/hyprland. Wallust renders `wallust/templates/*` into `generated-colors.*` files inside `~/.config/{hypr,waybar,rofi,swaync,kitty,alacritty,quickshell}` — these are **gitignored, machine-specific** files. Style files define a static Catppuccin fallback first and `@import`/`include` the generated file after it (last definition wins). Never hand-edit `generated-colors.*`; run `apply-theme.sh --seed` to restore fallbacks.
+
+The quickshell one is the exception to "reload the app": it is a `FileView` with `watchChanges`, so it repaints from the new JSON with **no restart and no reload line in `apply-theme.sh`**. It is the only consumer in the pipeline that never needs to be poked.
+
+`wallust/templates/colors-quickshell.json` is strict JSON with **no comments** — its consumer is a `JsonAdapter`, and JSON has no comment syntax that survives parsing. The reasoning lives in `wallust/wallust.toml` next to the entry instead. Its palette names and source indices are deliberately identical to `colors-waybar.css` so the bar and the dashboard cannot drift apart; change one, change both.
 
 ## Wallpapers (awww via waypaper)
 
@@ -346,6 +350,57 @@ appears in its own command line, and killed it mid-script — so the commands
 after it silently never ran and the tmux server "did not exist". It has now
 happened three times in this repo. Use the PID from `/proc` and `kill` it, or
 match on something that cannot match the caller.
+
+## Dashboard overlay (quickshell, `Super+D`)
+
+`quickshell/shell.qml` draws a summoned overlay — calendar, MPRIS media, system
+monitor, app launcher. **It is not a shell migration: waybar and swaync stay.**
+`quickshell` is in `extra` (6 MiB), not the AUR, and the roadmap's old
+"duplicates waybar for no gain" note was right about the bar and wrong about
+the overlay — the only modules that overlap are `PanelWindow`, `SystemTray` and
+`Notifications`. See RIZZ-ROADMAP.md 3.1.
+
+**The config is the `default` one, so invoke it with no `-c`.** quickshell
+registers `~/.config/quickshell/shell.qml` as `default`; `-c`/`--config` takes a
+config *name* and looks for `~/.config/quickshell/<name>/shell.qml`, so
+`qs -c ~/.config/quickshell` silently finds nothing. `Super+D` runs
+`qs ipc call dashboard toggle` from `hyprland.lua`.
+
+Autostart is in the `hyprland.start` block, which fires **once** — it does not
+re-fire on `hyprctl reload` (verified by process start time across an
+`apply-theme.sh` run), so wallpaper changes never restart quickshell.
+
+QML traps this file already pays for, all documented inline and in
+`quickshell/README.md`:
+
+- **Never name an `id` `palette`.** Qt already owns it (`QQuickPalette`), so
+  `palette.adapter` is undefined in every binding while the object itself logs as
+  healthy. The id is `pal`. The symptom — object exists, properties missing —
+  looks like a corrupt data file, not a name collision.
+- `ExclusionMode.Ignore` is a **top-level type**, not `Quickshell.ExclusionMode`.
+- `import QtQuick` is not implicit here; without it `ListView is not a type`.
+- A `Row` whose child sets `anchors.right` warns "Row will not function" and
+  goes inert. Wrap in an `Item`.
+- Sibling order is paint order: the calendar's today-pill `Rectangle` hid its own
+  day number until it got an explicit `z`.
+- `Quickshell.watchFiles` defaults to **true** and reloads the whole config when
+  any file in the shell directory changes — including `generated-colors.json`.
+  It is set to `false` in `Component.onCompleted`; otherwise every wallpaper
+  change reloads the shell and closes the overlay. This is the `hl.env` trap in
+  a different costume: a file-driven feature sharing a directory with a
+  file-driven reload path.
+- **QtQuick.Controls is deliberately not imported.** No `TextField`, no
+  `ScrollBar`. Importing it brings the Fusion style, and a launcher that
+  inherits the system style would be the one surface not following the wallpaper.
+  For the same reason `QT_QPA_PLATFORMTHEME=kde` does nothing for this window:
+  that env var hands a palette to QWidget apps, and a QML scene gets no colours
+  from `kdeglobals`. The overlay themes itself from the generated JSON.
+
+Not yet verified: the keyboard (no `wtype`/`ydotool` installed, so `Escape`,
+arrows, `Enter` and type-to-filter are wired but unexercised), and the
+`blur-quickshell` layer rule — see the OPEN entry in RIZZ-ROADMAP.md, where
+`rofi` fails the same blur test, so it is a pre-existing session issue rather
+than a quickshell one.
 
 ## Firefox theming (wallust → Design System tokens)
 
