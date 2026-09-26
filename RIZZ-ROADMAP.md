@@ -152,7 +152,14 @@ two idle file managers are nearly indistinguishable.
       conditionals that get their own colour and space. Net layout:
       `>_ session │ 1:fish │ [2:nvim] │ 3:logs …` with a plain filled pill for the active window.
       Re-verified on screen at real terminal size, not only in a mock-up.
-- [~] **4.4 hypridle chain** — the *timing* is fixed (5 min dim → 15 min lock → 25 min dpms off → 45 min suspend, was locking at 6). The **fade** is still missing: hypridle 0.1.8 is the newest on Arch and rejects the `dpms` listener key, so the "fade into the blurred lock screen" wants a brightness ramp script in `on-timeout` instead — or a newer hypridle
+- [x] **4.4 hypridle chain** — the timing was already right (5 min fade → 15 min lock → 25 min dpms off → 45 min suspend, was locking at 6). The **fade** landed as `hyprland/scripts/dim-ramp.sh`, and chasing it turned up two defects that had been hiding in plain sight:
+
+  - **`brightnessctl set 10` is a raw sysfs value, not 10%.** The panel maxes at 65535, so the dim step was asking for 0.015% — a black screen at five minutes — directly under a comment that said it was dimming the panel. The script takes a real percentage, converts it against the device max (10% → 6553), and interpolates a **smoothstep**, because a linear fade spends most of its time in the invisible tail and looks like a stall. The lock at 15 min then lands on an already-faded panel, so no second ramp: adding one would widen the window in which someone who came back still gets locked.
+  - **The 25-minute screen blank had never run.** This Hyprland's `hyprctl` is the Lua build, so `hyprctl dispatch dpms off` is rewritten to `hl.dispatch(dpms off)` and dies on a Lua parse error — off a timer, into a log nobody reads. The working form is `hyprctl eval "hl.dsp.dpms('off')"`. The same bug is still live in `hyprland.lua` twice: `Super+space` (switchxkblayout) and the `hyprctl dispatch exit` half of `Super+Q`, the latter masked because `hyprshutdown` is tried first and exists.
+
+  Verified on the real panel, not by reading the file back: hypridle firing the dim step lands on exactly 6553; `wake` restores 22938; a `wake` mid-fade kills the ramp (a bash `trap` that only cleans up would keep dimming, since bash continues after a trapped signal) and the brightness stays put 1.5 s later; a second `dim` while one is in flight refuses to start, so the saved level is never an already-dimmed value. The dpms pair was verified by parts — the eval call, and the quoting surviving `sh -c` — rather than blanking the screen mid-conversation.
+
+  Still open: whether 10% is the right floor for reading a password in daylight. It is the number the config always intended; it has just never actually happened before.
 
 ## ⚫ Phase 5 — Bleed edge / someday
 
@@ -206,6 +213,13 @@ two idle file managers are nearly indistinguishable.
 - **Confirm a palette override with a probe nobody can misread**: set the colour to magenta and check the app turns magenta. A plausible result is not proof the override landed
 - **qt6ct's `dusk.conf` is a light scheme** — named like a dark one. Pointing `color_scheme_path` at it gives light-grey windows
 - **Single-instance Qt apps will lie to you** — a stale `breeze-settings6` kept getting re-raised, so three consecutive "the fix didn't work" results were screenshots of the *old* process. Check `/proc/<pid>/environ` and confirm the pids are really gone before trusting a before/after
+- **A percentage that is not a percentage** — `brightnessctl set 10` is a raw sysfs value; on a 65535-max panel it is 0.015%, i.e. black. The command takes `50%` if you mean percent, and a comment saying "dim" is not evidence that it dims
+- **A one-shot `set` is not a fade**, and a linear one looks like a stall: interpolate with a smoothstep so the ends are gentle, or most of the ramp happens where nobody can see it
+- **A bash `trap` on TERM runs the handler and keeps going** — a cleanup-only trap lets a killed ramp keep writing brightness after `wake` restored it. The handler has to `exit`
+- **This machine's `hyprctl` is the Lua build, and it fails as a parse error, not a usage error** — `hyprctl dispatch dpms off` becomes `hl.dispatch(dpms off)`. A timer-driven command that dies this way logs nothing where anyone looks, so a step can be broken for months and still look configured. Use `hyprctl eval "hl.dsp.dpms('off')"`
+- **`hypridle -v` does not exit** — it prints the rules and then keeps running, so a bare `hypridle -c … -v` hangs the shell. `timeout 3` it; `| head` only works because `head` closes the pipe
+- **`ps -C <script>` and `pgrep -x <script>` do not find your own scripts** — the kernel `comm` is `bash`, not the script name. And `pgrep -f <pattern>` finds *your own shell* whenever the pattern is in the command line you are running, which is why counting processes by pattern is not a way to count ramps
+- **hypridle reads its config once and has no reload** — a fixed config does nothing until the daemon is restarted, which makes a correct fix look broken (the same shape as the `hl.env` trap above)
 
 ## ⚡ Perf notes (GTX 1650 + Vega iGPU)
 
