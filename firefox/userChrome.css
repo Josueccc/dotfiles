@@ -1,0 +1,44 @@
+/* Firefox browser chrome theme — wallpaper-driven.
+ *
+ * Symlinked into <profile>/chrome/userChrome.css by install.sh. This is the
+ * entry point Firefox auto-loads; it must be named exactly userChrome.css and
+ * must live in the <profile>/chrome/ SUBDIRECTORY (not the profile root, which
+ * is what most guides say and which is silently ignored).
+ *
+ * Both @imports MUST sit at the very top, before any rule. Firefox uses a
+ * spec-compliant CSS parser and silently DROPS an @import that appears after
+ * other rules — unlike GTK (waybar/style.css gets away with it, waybar's
+ * parser is lenient). The order fallback-then-generated is what makes the last
+ * definition win, so a wallust palette overrides fallback.css.
+ */
+@import "fallback.css";
+@import "generated-colors.css";
+
+/* ── Why !important on everything ────────────────────────────────────────────
+ * The skin declares its Design System tokens inside a 10-layer @layer
+ * preamble (tab.tokens.css: `@layer tokens-foundation, tokens-browser-theme,
+ * …`). A declaration inside a cascade layer loses to every unlayered one, so an
+ * unlayered user-origin normal declaration is beaten by a layered UA one no
+ * matter how specific it is. Tokens are set in fallback.css/generated-colors.css
+ * with !important for this reason; the same applies to the direct rules below.
+ */
+
+/* Titlebar / tab strip background.
+ * The Linux skin sets `toolbar { background-color: -moz-headerbar }` inside
+ * `@media (-moz-platform: linux)`, so targeting `toolbar` directly means
+ * fighting the native GTK colour. `#main-window` avoids that.
+ */
+#main-window {
+  background-color: var(--toolbox-background-color) !important;
+}
+
+/* The active-tab marker is the skin's own --tab-line-selected-color token, set
+ * in generated-colors.css. There is deliberately no ::before/::after hack here:
+ * the selected tab's background is a STACKED IMAGE on `.tab-background`
+ * (tabs.css:696), not a background-color, and it is on `.tab-background`, not
+ * on `.tabbrowser-tab` — so the naive `background-color` override does nothing.
+ * The line token is the supported hook. */
+
+/* Unselected tab labels inherit from --toolbox-text-color, which is already
+ * correct. Their opacity is left alone deliberately: dimming via opacity also
+ * dims the favicon. */

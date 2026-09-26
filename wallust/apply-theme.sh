@@ -10,6 +10,15 @@
 # Wired up via waypaper's post_command, so every wallpaper change re-themes:
 #   hyprland borders · waybar · rofi · swaync · kitty · alacritty   (wallust)
 #   GTK3 apps: thunar, blueman, gnome-disks                        (matugen)
+#   Firefox chrome + about: pages                                 (wallust)
+#
+# Browsers/Electron notes: Firefox is a wallust template like the rest, but it
+# cannot follow the ~/.config/<tool>/ convention — its profile dir is named with
+# a random hash, so firefox/link-profile.sh resolves profiles.ini and symlinks
+# the files into <profile>/chrome/. Brave is NOT in this pipeline: Chromium M154
+# deleted the multi-colour theme system, so it accepts a single seed colour and
+# must be closed before its Preferences file can be edited. See
+# brave/apply-brave-theme.sh.
 #
 # Two generators on purpose. wallust drives the shell because it is fast and its
 # 16-colour palette suits CSS/rasi/kitty. GTK3 is driven by matugen instead
@@ -103,6 +112,56 @@ if [ "${1:-}" = "--seed" ]; then
         '@define-color error_color_breeze #f38ba8;' \
         '@define-color success_color_breeze #a6e3a1;' \
         '@define-color warning_color_breeze #f9e2af;'
+
+    # Firefox Design System tokens. Note this duplicates the tracked
+    # firefox/fallback.css on purpose: the seed must not depend on a file that
+    # lives in the repo and could itself be missing, and --seed's whole job is
+    # to write something readable without running wallust. userChrome.css
+    # imports generated-colors.css LAST, so once wallust runs this is replaced
+    # and fallback.css is what you are left with.
+    seed "$HOME/.dotfiles/firefox/generated-colors.css" \
+        '/* Static fallback palette (Catppuccin Mocha). Overwritten by wallust. */' \
+        ':root {' \
+        '  --toolbox-background-color: #11111b !important;' \
+        '  --toolbox-background-color-inactive: #11111b !important;' \
+        '  --toolbox-text-color: #cdd6f4 !important;' \
+        '  --toolbox-text-color-inactive: #cdd6f4 !important;' \
+        '  --toolbar-background-color: #1e1e2e !important;' \
+        '  --toolbar-text-color: #cdd6f4 !important;' \
+        '  --toolbar-field-background-color: #11111b !important;' \
+        '  --toolbar-field-text-color: #cdd6f4 !important;' \
+        '  --toolbar-field-background-color-focus: #11111b !important;' \
+        '  --toolbar-field-focus-border-color: #a6adc8 !important;' \
+        '  --tab-background-color-selected: #1e1e2e !important;' \
+        '  --tab-background-color-hover: #1e1e2e !important;' \
+        '  --tab-selected-textcolor: #cdd6f4 !important;' \
+        '  --tab-line-selected-color: #89b4fa !important;' \
+        '  --tab-line-hover-color: #1e1e2e !important;' \
+        '  --urlbar-background-color: #11111b !important;' \
+        '  --urlbar-box-background-color: #1e1e2e !important;' \
+        '  --urlbar-text-color: #cdd6f4 !important;' \
+        '  --sidebar-background-color: #1e1e2e !important;' \
+        '  --sidebar-text-color: #cdd6f4 !important;' \
+        '  --sidebar-border-color: #1e1e2e !important;' \
+        '  --panel-background-color: #1e1e2e !important;' \
+        '  --panel-text-color: #cdd6f4 !important;' \
+        '  --panel-border-color: #1e1e2e !important;' \
+        '  --focus-outline-color: #a6adc8 !important;' \
+        '  --color-gray-100: #11111b !important;' \
+        '  --color-gray-95: #11111b !important;' \
+        '  --color-gray-90: #11111b !important;' \
+        '  --color-gray-85: #1e1e2e !important;' \
+        '  --color-gray-80: #1e1e2e !important;' \
+        '  --color-gray-40: #a6adc8 !important;' \
+        '  --color-gray-30: #cdd6f4 !important;' \
+        '  --color-gray-20: #cdd6f4 !important;' \
+        '  --color-gray-10: #cdd6f4 !important;' \
+        '  --color-gray-0: #cdd6f4 !important;' \
+        '  --color-accent-primary: #a6adc8 !important;' \
+        '  --color-accent-primary-hover: #a6adc8 !important;' \
+        '  --color-accent-primary-active: #585b70 !important;' \
+        '  --color-accent-primary-selected: #bac2de !important;' \
+        '}'
     exit 0
 fi
 

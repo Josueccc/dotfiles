@@ -1,0 +1,38 @@
+/* Firefox internal pages (about:preferences, about:addons, about:newtab, …).
+ *
+ * Symlinked into <profile>/chrome/userContent.css by install.sh.
+ *
+ * These pages do NOT use the browser-chrome tokens from userChrome.css. They
+ * are ordinary content documents, so they resolve against the *content* half of
+ * the Design System instead. The right hook is the primitive ramp, not the
+ * consumers: about:preferences sets
+ *   `--background-color-canvas: light-dark(var(--color-gray-0), var(--color-gray-90))`
+ * and paints itself with `background-color: var(--background-color-canvas)`, so
+ * overriding --color-gray-* re-themes the page without naming a single widget.
+ *
+ * Reachability (measured on 156.0.1): about:preferences, addons, newtab,
+ * config, logins, privatebrowsing, profiles, debugging, about:blank — all
+ * reachable. about:downloads is NOT (it is not a normal content docshell);
+ * don't try to style it.
+ */
+@import "fallback.css";
+@import "generated-colors.css";
+
+/* The palette itself — the --color-gray-* ramp and --color-accent-primary — is
+ * defined in fallback.css / generated-colors.css, NOT here. Both the chrome
+ * half and the content half live in those two files so there is a single place
+ * to look for "what colour is anything", and so the about: pages track the
+ * wallpaper exactly like the chrome does.
+ */
+
+/* about: pages set a light `color-scheme` in places; pin it so form controls,
+ * scrollbars and the caret pick up the dark palette rather than the UA's light
+ * defaults. */
+:root {
+  color-scheme: dark !important;
+}
+
+/* about:newtab has carried a hardcoded light background in some builds. */
+body {
+  background-color: var(--background-color-canvas, #1e1e2e) !important;
+}

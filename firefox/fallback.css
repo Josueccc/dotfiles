@@ -1,0 +1,62 @@
+/* Static fallback palette (Catppuccin Mocha) for Firefox.
+ *
+ * IMPORT ORDER IS LOAD-BEARING. userChrome.css imports this FIRST and
+ * generated-colors.css SECOND; last definition wins, so a wallust-generated
+ * palette overrides everything here, and this file is what you get before
+ * wallust has ever run (fresh install, or `apply-theme.sh --seed`).
+ *
+ * These are Design System tokens, NOT the old --lwt-* names. In Firefox 156 the
+ * skin only consumes --lwt-* inside a `:root[lwtheme]` block, which is only set
+ * when a WebExtension theme is installed — so setting --lwt-accent-color by
+ * hand does nothing at all. See CLAUDE.md.
+ */
+:root {
+  --toolbox-background-color: #11111b !important;
+  --toolbox-background-color-inactive: #11111b !important;
+  --toolbox-text-color: #cdd6f4 !important;
+  --toolbox-text-color-inactive: #cdd6f4 !important;
+
+  --toolbar-background-color: #1e1e2e !important;
+  --toolbar-text-color: #cdd6f4 !important;
+  --toolbar-field-background-color: #11111b !important;
+  --toolbar-field-text-color: #cdd6f4 !important;
+  --toolbar-field-background-color-focus: #11111b !important;
+  --toolbar-field-focus-border-color: #a6adc8 !important;
+
+  --tab-background-color-selected: #1e1e2e !important;
+  --tab-background-color-hover: #1e1e2e !important;
+  --tab-selected-textcolor: #cdd6f4 !important;
+  --tab-line-selected-color: #89b4fa !important;
+  --tab-line-hover-color: #1e1e2e !important;
+
+  --urlbar-background-color: #11111b !important;
+  --urlbar-box-background-color: #1e1e2e !important;
+  --urlbar-text-color: #cdd6f4 !important;
+
+  --sidebar-background-color: #1e1e2e !important;
+  --sidebar-text-color: #cdd6f4 !important;
+  --sidebar-border-color: #1e1e2e !important;
+
+  --panel-background-color: #1e1e2e !important;
+  --panel-text-color: #cdd6f4 !important;
+  --panel-border-color: #1e1e2e !important;
+
+  --focus-outline-color: #a6adc8 !important;
+
+  /* Content-page ramp — the same two roles: darkest for surfaces, lightest for
+   * text. about:preferences builds its own background from --color-gray-90. */
+  --color-gray-100: #11111b !important;
+  --color-gray-95:  #11111b !important;
+  --color-gray-90:  #11111b !important;
+  --color-gray-85:  #1e1e2e !important;
+  --color-gray-80:  #1e1e2e !important;
+  --color-gray-40:  #a6adc8 !important;
+  --color-gray-30:  #cdd6f4 !important;
+  --color-gray-20:  #cdd6f4 !important;
+  --color-gray-10:  #cdd6f4 !important;
+  --color-gray-0:   #cdd6f4 !important;
+  --color-accent-primary:         #a6adc8 !important;
+  --color-accent-primary-hover:   #a6adc8 !important;
+  --color-accent-primary-active:  #585b70 !important;
+  --color-accent-primary-selected: #bac2de !important;
+}

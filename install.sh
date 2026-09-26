@@ -174,6 +174,15 @@ if [ "$MODE" = "desktop" ]; then
     # Makes GTK3 read the matugen-generated palette. Only the entry point is
     # symlinked — colors.css next to it is generated and machine-specific.
     symlink "$DOTFILES/gtk/gtk-3.0/gtk.css"         "$HOME/.config/gtk-3.0/gtk.css"
+
+    # Firefox cannot be symlinked the usual way: its profile directory is named
+    # with a random hash and the whole ~/.config/mozilla tree is Firefox's, so
+    # the theme files are linked INTO the profile one at a time. The script
+    # resolves profiles.ini itself and no-ops with a clear message if Firefox
+    # has never been run.
+    if [ -x "$DOTFILES/firefox/link-profile.sh" ]; then
+        bash "$DOTFILES/firefox/link-profile.sh" || true
+    fi
 fi
 
 # ── Shell rc sourcing ──────────────────────────────────────────────────────────

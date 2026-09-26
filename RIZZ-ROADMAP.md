@@ -83,9 +83,26 @@ two idle file managers are nearly indistinguishable.
       gnome-disks is GTK3). Left exactly as found. The promising route is a custom *theme* dir
       wrapping catppuccin, not another user `gtk.css`.
 
-- [ ] **2.6 Browsers/Electron** — Firefox, Discord and Brave are still untouched by all of this.
-      They theme themselves and ignore both kdeglobals and GTK CSS. Only worth it if the
-      desktop otherwise feels half-themed.
+- [x] **2.6 Browsers/Electron** — **Firefox done, Brave done (reduced), Discord declined.**
+      **Firefox 156** follows the wallpaper via `wallust/templates/colors-firefox.css` →
+      `firefox/{userChrome,userContent,fallback,generated-colors}.css`, linked into
+      `<profile>/chrome/` by `firefox/link-profile.sh`. Both browser chrome *and*
+      the about: pages are themed. The `chrome/` subdirectory (not the profile root)
+      is the entire mechanism, and `--lwt-*` is dead in 156 — see CLAUDE.md for the
+      four silent-failure traps and the token names. Verified by two-colour probe
+      (213,082 cyan / 0 magenta) and by pixel-sampling the live `about:preferences`
+      against the palette exactly (`#171519` canvas, `#424045` cards, `#FEF7EF` text).
+      Accent is `color7`, chosen by sweeping candidate mappings over 30 wallpapers:
+      `color4` fails as both link text (3.43 vs 4.5 needed) and focus ring (1.94 vs
+      3.0 needed); `color7` passes 30/30.
+      **Brave is a seed colour, not a palette.** `brave --version` reads `154.1.96.59`
+      — that is *Chromium* 154, not Brave 1.96 — and M154 deleted the multi-colour
+      native theme (`frame_color` and `chrome.theme` both absent from the binary) and
+      the WebExtension theme API with it. One ARGB seed + a variant is all that
+      remains. Smaller win, but the payoff was always the accent.
+      **Discord declined:** no theming surface exists; the only route patches
+      `app.asar` and re-breaks on every update.
+      Both browsers apply on **next launch** — there is no live reload, unlike waybar.
 
 
 ## 🔵 Phase 3 — The big swing (weekend, optional)
@@ -133,6 +150,13 @@ two idle file managers are nearly indistinguishable.
 - **The Qt6 fix was verified against the wrong app.** `qt6ct` themes plain Qt6 apps fine (pavucontrol is pixel-identical under `qt6ct` and `kde`) but KF6 apps override its palette and stay light. Dolphin: `#eff0f1` under qt6ct, `#1e1e2e` under `kde`. Checking that the plugin *loads* is not the same as checking a KF6 app is dark
 - **`hl.env` only applies at startup** — Hyprland parsed its config at 13:35:05, `hyprland.lua` was edited at 17:08:07, so the change was inert all session. `hyprctl setenv` returns "unknown request" on 0.56.2, so there is no live patch: **a correct env fix needs a relog before you can see any effect.** The most expensive trap in this repo
 - **`pkill -f <script>` matches the calling shell** when the pattern appears anywhere in its command line — it killed my own shell twice, and the empty output looked like a hang. Track PIDs in a file instead
+- **`brave --version` lies about the major version** — it prints `154.1.96.59`, and `1.96` is the *Chromium* milestone, not Brave's. It is Brave 154 / Chromium 154, which deleted the multi-colour native theme outright. Read the milestone as a browser version and you hunt for features that no longer exist
+- **`/usr/bin/brave` is a bash wrapper, not the binary** — the ELF is `/opt/brave-bin/brave`. Probing the wrapper with `strings` returns 0 hits for *everything*, which looks like confirmation of whatever you hoped for
+- **Firefox loads `userChrome.css` from `<profile>/chrome/`, not the profile root** — and libpref's own comment in `all.js` ("checking the user profile directory") is wrong too. Silent, no warning. Settle it with a two-colour probe (one colour in the root, another in `chrome/`, count the pixels), not by reading a guide
+- **Firefox's `--lwt-*` tokens are unreachable without a WebExtension theme** — the skin only consumes them inside `:root[lwtheme]`, set only when a theme extension is installed. Setting `--lwt-accent-color` by hand is a no-op, not an override
+- **Grepping `omni.ja` for `--tab-*` finds pdf.js first** — `--tab-bg` and `--tab-text-color` are real but belong to the bundled PDF viewer's `viewer.css`, not browser chrome. They look like a perfect answer and are not one
+- **Firefox splits its jars** — browser chrome skin is in `browser/omni.ja`, platform skin in `omni.ja`. Tokens that look missing are usually in the other jar; I "proved" five tokens nonexistent by reading only the wrong one
+- **The obvious accent is the wrong accent** — `color4` fails as link text (3.43) and as a focus ring (1.94); `color6` passes 23/30 wallpapers; `color7` passes 30/30. Measure the pairings, don't eyeball the palette
 - **GTK4 silently ignores `@import url('x.css')`** but honours `@import 'x.css'`. Both parse without error, so the failure is invisible; pixel-sample the app to confirm
 - **`gtk-dark.css` outranks `gtk.css`** in GTK4, so a palette in the user `gtk.css` cannot override a theme defining the same names — which every catppuccin theme does for `window_bg_color`
 - **Confirm a palette override with a probe nobody can misread**: set the colour to magenta and check the app turns magenta. A plausible result is not proof the override landed

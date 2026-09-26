@@ -34,6 +34,8 @@ Every tool we configure together must have its dotfile **here**. Never edit conf
 | Kvantum | `kvantum/` | `~/.config/Kvantum/` |
 | KDE globals | `kde/kdeglobals` | `~/.config/kdeglobals` |
 | GTK3 palette entry | `gtk/gtk-3.0/gtk.css` | `~/.config/gtk-3.0/gtk.css` |
+| Firefox | `firefox/userChrome.css` + `userContent.css` + `user.js` | `<profile>/chrome/` (see below) |
+| Brave | `brave/apply-brave-theme.sh` | writes `Preferences` directly |
 | matugen | `matugen/templates/` + `matugen/config.toml` | (run by `wallust/apply-theme.sh`) |
 | Bash aliases/scripts | `custom.sh` | sourced from `~/.bashrc` / `~/.zshrc` |
 
@@ -150,6 +152,129 @@ Two more traps in this area:
 Arch's waybar is built with `-Dcava=disabled`, so the native `cava` module is unavailable — the bar uses `custom/cava` running `waybar/scripts/cava.sh`. cava's normal terminal output cannot be piped (it emits ANSI escapes unconditionally and asks stdout for a window size), so `cava/config` switches it to `method = raw` + `data_format = ascii`: one digit (0-7) per bar, which the wrapper maps to block glyphs. Colors live in `waybar/style.css` (`#custom-cava`), which inherits the wallpaper palette. Never switch the cava config to `noncurses` without also changing the wrapper.
 
 Two things in that config that look wrong but aren't: `bar_delimiter` must stay a **printable** character (setting it to `0` means "emit a NUL byte", not "no separator" — the wrapper strips non-digits anyway, which is why it degrades to clean bars rather than garbage), and `noise_reduction` needs to be lowish (60) or the bars barely move on anything but loud audio. To check the bars are actually reacting, play a tone with `paplay /usr/share/sounds/alsa/Front_Center.wav` — `pactl play-file` does not exist.
+
+## Firefox theming (wallust → Design System tokens)
+
+Firefox 156 follows the wallpaper. `wallust/templates/colors-firefox.css` writes
+`firefox/generated-colors.css`, and `firefox/link-profile.sh` symlinks four files
+into the profile. The `chrome/` subdirectory is the whole mechanism, and four
+things about it are all silent failures:
+
+- **The files go in `<profile>/chrome/`, not the profile root.** Overwhelmingly
+  most guides say the root, and so does the comment in libpref's `all.js`
+  ("checking the user profile directory"). Both are wrong:
+  `nsXREDirProvider.cpp` appends `chrome` to `NS_APP_USER_CHROME_DIR`, and
+  `GlobalStyleSheetCache::InitFromProfile` then appends the two filenames.
+  Proven with a two-colour probe — magenta in the root, cyan in `chrome/` —
+  which rendered 213,082 cyan pixels and 0 magenta.
+- **The profile dir is a random hash** (`2z7f38dl.default-release`) and this
+  machine keeps profiles in `~/.config/mozilla/firefox`, not `~/.mozilla`.
+  `link-profile.sh` resolves it from `profiles.ini` on every run, so the links
+  survive the profile being recreated.
+- **`toolkit.legacyUserProfileCustomizations.stylesheets` is still required**, still
+  defaults to false, and fails silently — no warning, no error. Also note
+  `userChrome.css` is never read in Safe Mode, which is the intended escape hatch.
+- **`!important` is mandatory on every declaration.** The skin declares its tokens
+  inside a 10-layer `@layer` preamble (`tab.tokens.css:8`), and a declaration
+  inside a cascade layer loses to every unlayered one — so an unlayered
+  user-origin normal declaration is beaten by a layered UA one regardless of
+  specificity. You cannot fix this from the user sheet; `@layer` reordering is
+  inert because the UA sheet fixes the layer order first.
+
+**Use the Design System tokens, not `--lwt-*`.** The old names are not merely
+deprecated, they are unreachable: the skin consumes `--lwt-*` only inside a
+`:root[lwtheme]` block, and `lwtheme` is only set when a WebExtension theme is
+installed. Setting `--lwt-accent-color` by hand does nothing. `--toolbar-bgcolor`,
+`--tab-selected-bgcolor` and `--urlbar-box-bgcolor` have **zero** definitions and
+zero uses in the shipped jars. Live names: `--toolbar-background-color`,
+`--tab-background-color-selected`, `--tab-selected-textcolor`,
+`--sidebar-background-color`, `--urlbar-box-background-color`, and
+`--tab-line-selected-color` for the active-tab accent (the selected tab's
+background is a *stacked image* on `.tab-background`, not a `background-color`, so
+a naive override does nothing).
+
+Beware `--tab-bg` / `--tab-text-color`: those are real but belong to
+**pdf.js**'s bundled `viewer.css`, not to browser chrome. Grepping `omni.ja` finds
+them first and they look like a perfect answer.
+
+**`@import` must be the first thing in the file.** waybar's `style.css` gets away
+with importing after its rules because GTK's CSS parser is lenient; Firefox uses a
+spec-compliant parser and silently drops an out-of-order `@import`. That is why the
+palette is split into `fallback.css` (tracked) and `generated-colors.css`
+(generated), both imported at the top of `userChrome.css`/`userContent.css`, rather
+than a fallback block followed by an import.
+
+**about: pages are content documents**, so they resolve against a different half of
+the design system. The hook is the primitive ramp, not the widgets:
+`about:preferences` sets `--background-color-canvas: light-dark(var(--color-gray-0),
+var(--color-gray-90))` and paints from it. Overriding `--color-gray-*` and
+`--color-accent-primary` re-themes every internal page without naming a selector.
+Reachable: preferences, addons, newtab, config, logins, profiles, about:blank.
+**`about:downloads` is not** — it is not a normal content docshell, so don't try.
+
+### The accent is `color7`, and that was measured, not chosen
+
+The obvious pick, `color4`, fails on both counts. On `deer-forest.jpg`:
+
+| pair | ratio | needs | |
+|---|---|---|---|
+| `color4` as link text on canvas | 3.43 | 4.5 | FAIL |
+| `color4` as focus ring on nav bar | 1.94 | 3.0 | FAIL |
+| `color6` as focus ring on nav bar | 4.68 | 3.0 | pass |
+| `color7` as focus ring on nav bar | 8.64 | 3.0 | pass |
+
+Sweeping candidate mappings over 30 wallpapers and re-checking every pair each
+time: `color6` 23/30, `color7` 28/30, `color7` for the muted tier 30/30. `color6`
+drifts close to `color0` on low-chroma images, which is what the failures were. The
+winning config also collapsed the text ramp to two tones — body text `foreground`,
+everything de-emphasised `color7` — which is the honest outcome: a 16-colour
+wallpaper palette only guarantees its two extremes. A three-tier ramp looked
+tidier and failed. The same sweep is worth re-running after touching the mapping:
+`/tmp/opencode/verify.py` re-checks the generated file and exits non-zero on any
+pair below its threshold.
+
+## Brave theming (one seed colour — M154 deleted the rest)
+
+`brave/apply-brave-theme.sh` writes a theme into Brave's `Preferences`. This is
+much smaller than everything else in the pipeline, and not by choice.
+
+**`brave --version` prints `154.1.96.59`, and 1.96 is the *Chromium milestone*, not
+Brave's version.** This is Brave 154 / Chromium 154. Read it as "1.96" and you go
+looking for theme features that were deleted twenty milestones ago. Verified
+against `/opt/brave-bin/brave` (note `/usr/bin/brave` is a bash wrapper — probing
+*that* with `strings` returns zero for everything, which looks like confirmation
+of anything you hoped for):
+
+```
+frame_color              0        chrome.theme              0
+ntp/background_color      0        user_color_theme_id       1
+autogenerated.theme.color 1       browser.theme.color_scheme2 1
+```
+
+The multi-colour native theme JSON is **deleted** — not legacy, not deprecated,
+`chrome/theme/` returns 404 and neither `_api_features.json` nor
+`_permission_features.json` contains `theme`. The `chrome.theme` WebExtension API
+is gone too, so there is no extension route either. M154 accepts **one ARGB seed
+colour** plus a variant enum (`kSystem/kTonalSpot/kNeutral/kVibrant/kExpressive`)
+and derives every surface via `ui::ColorProvider`. A 16-colour wallpaper palette
+is simply not expressible.
+
+The prefs are unprotected (no MACs in this profile) and read at startup by
+`ThemeService::InitFromPrefs`, so a hand-edit works. Three traps:
+
+- **The colour must be a JSON *signed 32-bit int*.** `"#7C5CFF"` is silently
+  ignored. This is the #1 cause of "I wrote it and nothing happened."
+- **Never write while Brave is running.** `PrefService` rewrites the whole file on
+  a ~10s debounce and unconditionally on exit. The script refuses to run.
+- Prefer the **`autogenerated_theme_id`** branch: it is the only one that calls
+  `SwapThemeSupplier()` explicitly. `autogenerated.theme.policy.color` does *not*
+  work by hand-editing — `UsingPolicyTheme()` checks `IsManagedPreference()`.
+
+Verify by pixel-sampling a screenshot, not by re-reading the file, and do not
+assert the rendered colour equals the seed — the mixer transforms it.
+
+Discord is deliberately untouched: it exposes no theming surface at all, and the
+only route is a loader that patches `app.asar`, which re-breaks on every update.
 
 ## install.md
 

@@ -20,3 +20,8 @@ rofi      = { template = "colors-rofi.rasi",      target = "~/.config/rofi/gener
 swaync    = { template = "colors-swaync.css",     target = "~/.config/swaync/generated-colors.css" }
 kitty     = { template = "colors-kitty.conf",     target = "~/.config/kitty/generated-colors.conf" }
 alacritty = { template = "colors-alacritty.toml", target = "~/.config/alacritty/generated-colors.toml" }
+# Firefox cannot use ~/.config/<tool>/ like the rest: its profile directory is
+# named with a random hash, so the target is the repo copy and
+# firefox/link-profile.sh symlinks it into <profile>/chrome/ alongside
+# userChrome.css, which is what actually @imports it.
+firefox   = { template = "colors-firefox.css",   target = "~/.dotfiles/firefox/generated-colors.css" }
