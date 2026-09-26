@@ -260,6 +260,73 @@ Consequences worth knowing:
   no clock in the statusline for a second reason anyway: waybar already owns one
   in `modules-center`, and two clocks on one screen is worse than the saving.
 
+### The statusline glyphs are written as codepoints, never typed
+
+Picking a Nerd Font icon by its name does not work, twice over.
+
+**You cannot type these characters.** Every private-use glyph written by hand
+landed on a different codepoint than intended — `U+F0120` came out as `U+F0112`,
+`U+F002` as `U+F0349`, and so on, all seven. That is how copy-mode ended up
+wearing a **clock face** (`U+F0150` is literally a clock), which the user
+correctly read as "the icons are wrong". So:
+
+- `wallust/templates/colors-tmux-styles.conf` stores icons as `@G_*@` tokens and
+  `/tmp/opencode/expandglyphs.py` inserts them by codepoint.
+- The seed in `wallust/apply-theme.sh` uses bash escapes instead, which also
+  keeps that script pure ASCII.
+- **Nerd Fonts v3 glyphs live in the plane-15 PUA (`U+F0000`+)**, not the BMP
+  PUA (`U+E000..U+F8FF`). A verification script that only checks the BMP range
+  reports "no glyphs found" in a file full of them. The set is mixed — `U+F0120`
+  is plane 15, `U+F108` is BMP — so read each codepoint, don't assume.
+- In bash, `$'\uXXXX'` is **BMP-only and silently truncates**: `$'\uf0120'`
+  becomes `U+F012`. Use `$'\U000F0120'` (8 digits) above the BMP.
+
+**And you cannot pick them by name either.** Rendered side by side
+(`/tmp/opencode/glyphsheet.py`, which draws candidates from the TTF with PIL —
+no window, no screenshot, no focus stealing):
+
+| meant | codepoint | actually renders as |
+|---|---|---|
+| copy-mode | `U+F0150` | a **clock** |
+| prefix | `U+F00E4` | a **beetle** |
+| host | `U+F0084` | a **person** |
+| bell | `U+F0761` | a **calendar** |
+| host | `U+F055` | a **power button** |
+| zoom | `U+F0311` | a left arrow |
+
+Look at the glyph, then write down its codepoint. At 19px several are ambiguous
+anyway — `U+F109` (laptop) reads as a plain rectangle, so the host uses
+`U+F108`, which reads as a monitor with a stand.
+
+### Why there is no powerline separator
+
+The first version used `U+F0404` between windows and it looked like a smudge.
+The Nerd Font powerline glyphs are drawn as **thin half-cell connectors meant to
+abut the next cell**, but a monospace font gives every glyph the same advance
+width, so they float in dead space and read as a crossed-out scribble. A plain
+`│` (`U+2502`) has no such constraint and cannot overlap anything. The sliver
+trick (`▌` pill edges) was tried and rejected for the same reason — it collided
+with the separator.
+
+Two more things the eye caught that reading the config did not:
+
+- **Warning colours taken from the palette are not warning colours.** Under
+  `deer-forest` the "warning" slot came out `#618435` against an accent of
+  `#808832` — two olives a few percent apart, so the indicators read as noise.
+  The state indicators now use **fixed** red/green. A warning that does not look
+  like a warning is worse than one that does not match the wallpaper.
+- **`#F` is what glued the `-` and `*` marks to the window name.** It is absent
+  now; activity and bell are explicit `#{?window_activity_flag,...}`
+  conditionals with their own colour and space.
+
+### Never `pkill -f` a window from this shell
+
+`pkill -f 'class stlvis'` matched the *calling shell*, because the pattern
+appears in its own command line, and killed it mid-script — so the commands
+after it silently never ran and the tmux server "did not exist". It has now
+happened three times in this repo. Use the PID from `/proc` and `kill` it, or
+match on something that cannot match the caller.
+
 ## Firefox theming (wallust → Design System tokens)
 
 Firefox 156 follows the wallpaper. `wallust/templates/colors-firefox.css` writes

@@ -180,11 +180,31 @@ if [ "${1:-}" = "--seed" ]; then
         'set -g colour12 "#89b4fa"' 'set -g colour13 "#cba6f7"' \
         'set -g colour14 "#94e2d5"' 'set -g colour15 "#a6adc8"'
 
+    # tmux status line, same design as the wallust template. The glyphs are
+    # written as $'\uXXXX' escapes on purpose: they are Nerd Font private-use
+    # codepoints, and typing them literally in a shell script is how you end up
+    # with a clock icon for copy-mode (every glyph in a first draft came out on
+    # the wrong codepoint). Escapes keep this file pure ASCII and reviewable.
+    #   U+F0120 terminal · U+F065E maximise · U+F002 magnifier · U+F0F3 bell
+    #   U+F015A circle-x · U+F023 padlock · U+F108 computer · U+2502 bar
+    # Plain assignments, NOT `local` — this block is at the top level of the
+    # script, and `local` outside a function is a hard error under `set -u`.
+    #
+    # Eight hex digits, not four: bash's $'\uXXXX' is BMP-only and silently
+    # truncates anything above U+FFFF, which is where every Nerd Font v3 glyph
+    # lives. $'\uf0120' quietly becomes U+F012. Use \U000F0120.
+    g_session=$'\U000F0120'; g_zoom=$'\U000F065E'; g_search=$'\U000F002'
+    g_bell=$'\U000F0F3'; g_dead=$'\U000F015A'; g_prefix=$'\U000F023'
+    g_host=$'\U0000F108'; g_pipe=$'\U00002502'; g_dot=$'\U000025CF'
     seed "$HOME/.config/tmux/generated-styles.conf" \
         '# Static fallback styles (Catppuccin Mocha). Overwritten by wallust.' \
         '# Hex literals, not colour names: only these can be re-sourced live.' \
         'set -g status-style "bg=#45475a,fg=#bac2de"' \
-        'set -g status-left "#[fg=#89b4fa,bold] #S #[default]"' \
+        "set -g status-left \"#[fg=#89b4fa] $g_session #[fg=#89b4fa,bold]#S#[default] \"" \
+        "set -g window-status-separator \"#[fg=#585b70]$g_pipe#[default]\"" \
+        "setw -g window-status-format \" #[fg=#bac2de]#I:#W#{?window_activity_flag,#[fg=#89b4fa] $g_dot,}#[default] \"" \
+        'setw -g window-status-current-format " #[bg=#89b4fa]#[fg=#45475a] #I:#W #[default]"' \
+        "set -g status-right \"#{?window_zoomed_flag,#[fg=#f38ba8] $g_zoom ,}#{?pane_in_mode,#[fg=#a6e3a1] $g_search ,}#{?window_bell_flag,#[fg=#f38ba8] $g_bell ,}#{?pane_dead,#[fg=#f38ba8] $g_dead ,}#{?client_prefix,#[fg=#89b4fa] $g_prefix ,}#[fg=#585b70]$g_host #H\"" \
         'set -g pane-border-style "fg=#585b70"' \
         'set -g pane-active-border-style "fg=#89b4fa"' \
         'set -g message-style "fg=#45475a,bg=#f9e2af,bold"' \

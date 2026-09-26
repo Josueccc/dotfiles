@@ -129,11 +129,29 @@ two idle file managers are nearly indistinguishable.
       replaced `tmux-tokyo-night`, which hardcoded colours that would win over the wallpaper. No
       clock: tmux does not strftime-expand status lines at all (`%H:%M` renders literally), the
       alternative forks a shell per tick, and waybar already has one in `modules-center`.
-      Verified live: `4:limpio*` filled accent pill, `󰐄` separators, `cachyos-x8664` right-aligned,
-      beam cursor, no tofu — which required pinning `JetBrainsMono Nerd Font` in *both* terminals,
-      since alacritty's `family = "monospace"` resolves to Noto Sans Mono and has no Nerd glyphs.
-      Along the way, kitty 0.49 had renamed every cursor option (`cursor_beam` → `cursor_shape`,
+      Verified live: filled accent pill, `cachyos-x8664` right-aligned, beam cursor, no tofu —
+      which required pinning `JetBrainsMono Nerd Font` in *both* terminals, since alacritty's
+      `family = "monospace"` resolves to Noto Sans Mono and has no Nerd glyphs.
+      Along the way, kitty 0.49 had also renamed every cursor option (`cursor_beam` → `cursor_shape`,
       `cursor_blink` → `cursor_blink_interval`, …) and rejects the old names outright
+
+      **Second pass, after the user reported the icons were unreadable and overlapping.** The
+      powerline statusline was wrong in three ways, none visible by reading the config back:
+      - **A powerline separator cannot work in a monospace font.** `U+F0404` is a thin half-cell
+        connector meant to abut the next cell; every glyph gets the same advance width, so it
+        floats in dead space as a crossed-out smudge. Replaced with a plain `│`. The `▌` sliver
+        pill edges were tried and rejected for the same reason — they collided with the separator.
+      - **The glyphs were the wrong glyphs.** `U+F0150` ("copy-mode") is literally a clock face,
+        which is why an unexplained clock kept appearing on the bar; `U+F00E4` is a beetle,
+        `U+F0761` a calendar, `U+F055` a power button. All seven icons now come from a rendered
+        comparison sheet (`/tmp/opencode/glyphsheet.py`) instead of from codepoint names.
+      - **Warning colours drawn from the palette were invisible.** `#618435` against an accent of
+        `#808832` is two olives a few percent apart, so the indicators read as noise. State
+        indicators now use fixed red/green, deliberately not from the wallpaper.
+      Also: `#F` was what glued the `-` and `*` marks to the window name — replaced with explicit
+      conditionals that get their own colour and space. Net layout:
+      `>_ session │ 1:fish │ [2:nvim] │ 3:logs …` with a plain filled pill for the active window.
+      Re-verified on screen at real terminal size, not only in a mock-up.
 - [~] **4.4 hypridle chain** — the *timing* is fixed (5 min dim → 15 min lock → 25 min dpms off → 45 min suspend, was locking at 6). The **fade** is still missing: hypridle 0.1.8 is the newest on Arch and rejects the `dpms` listener key, so the "fade into the blurred lock screen" wants a brightness ramp script in `on-timeout` instead — or a newer hypridle
 
 ## ⚫ Phase 5 — Bleed edge / someday
