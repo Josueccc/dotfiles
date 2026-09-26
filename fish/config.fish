@@ -6,5 +6,5 @@ function fish_greeting
     # echo "Hola, (whoami). Bienvenido/a a CachyOS."
 end
 
-# opencode
-fish_add_path /home/zerathul/.opencode/bin
+# opencode (installed by https://opencode.ai/install into ~/.opencode/bin)
+fish_add_path "$HOME/.opencode/bin"

@@ -24,6 +24,7 @@ Every tool we configure together must have its dotfile **here**. Never edit conf
 | Swaync | `swaync/` | `~/.config/swaync/` |
 | Starship | `starship/starship.toml` | `~/.config/starship.toml` |
 | Lazygit | `lazygit/` | `~/.config/lazygit/` |
+| opencode | `opencode/opencode.json` + `opencode/cli.json` | `~/.config/opencode/` (file by file) |
 | btop | `btop/` | `~/.config/btop/` |
 | Hyprlock | `hyprland/hyprlock.conf` | `~/.config/hypr/hyprlock.conf` |
 | Hypridle | `hyprland/hypridle.conf` | `~/.config/hypr/hypridle.conf` |
@@ -64,7 +65,15 @@ Changing the wallpaper re-themes the whole desktop: waypaper runs `wallust/apply
 
 ## ## Idle / lock (hypridle)
 
-`hyprland/hypridle.conf` is a ladder: dim (5 min) → lock (15) → dpms off (25) → suspend (45). Keep suspend last — an earlier suspend will pull the machine out from under a long build while the screen is still lit. hypridle 0.1.8 is the newest on Arch and **rejects** the newer `dpms` and `check_interval` listener keys, so the display-off step is a `hyprctl dispatch dpms off` on a timer rather than a native DPMS listener. Verify a change with `hypridle -c ~/.config/hypr/hypridle.conf -v` (it prints each registered rule; the "already running" error is expected while the real daemon is up).
+`hyprland/hypridle.conf` is a ladder: fade (5 min) → lock (15) → dpms off (25) → suspend (45). Keep suspend last — an earlier suspend will pull the machine out from under a long build while the screen is still lit.
+
+**The fade is `hyprland/scripts/dim-ramp.sh`, not a `brightnessctl set`.** Two reasons, both found by running the old line: `brightnessctl set 10` is a **raw sysfs value**, and this panel's max is 65535, so the old config asked for 0.015% — a black screen at five minutes — while its own comment said it was dimming. And a single `set` is a step change, which reads as a glitch rather than as dimming. The script takes a real *percentage*, converts it against the device max, and interpolates with a **smoothstep** (a linear fade spends most of its time in the invisible tail and looks like a stall). It writes its pid to `$XDG_RUNTIME_DIR/hypr-dim-ramp.pid` because `pkill -f dim-ramp` matches the *calling shell*; `wake` kills that pid and restores, and refuses to start a second ramp that would save an already-dimmed level as the user's own.
+
+**This machine's `hyprctl` is the Lua build.** `hyprctl dispatch <name> <args>` is rewritten to `hl.dispatch(...)` and fed to Lua, so the classic form dies with a parse error: `hyprctl dispatch dpms off` → `')' expected near 'off'`, and `hyprctl dispatch exit` → `expected a dispatcher`. The working forms are `hyprctl eval "hl.dsp.dpms('off')"` and `hyprctl eval "hl.exec_cmd('…')"`. **The dpms-off step was silently broken for this reason** — the ladder's 25-minute screen blank never once ran, and nothing logged an error where anyone would see it. `hyprland.lua` still has two live instances of the same bug: `Super+space` (`hyprctl dispatch switchxkblayout all next`) and the `hyprctl dispatch exit` half of `Super+Q`, which is masked because `hyprshutdown` exists and is tried first.
+
+**hypridle has no reload** — it reads its config once at startup, so a config change needs `kill $(pgrep -x hypridle)` and a fresh start (`hyprctl eval "hl.exec_cmd('hypridle')"`; plain `hyprctl dispatch exec hypridle` does not work here). Verify a config with `timeout 3 hypridle -c ~/.config/hypr/hypridle.conf -v` — it prints each registered rule and the "Is hypridle already running?" error is expected while the real daemon is up. **The `-v` run does not exit**, so it needs the `timeout`, and a bare `… | head` only works because `head` closes the pipe.
+
+hypridle 0.1.8 is the newest on Arch and **rejects** the newer `dpms` and `check_interval` listener keys, so the display-off step is a timer calling `hyprctl eval` rather than a native DPMS listener. It does run everything through `/bin/sh -c`, which is why `$HOME` expansion and `;` work in those command strings. (On a stock Hyprland, where `hyprctl` is the classic build, the eval form does not exist — put `hyprctl dispatch dpms off` back for that machine.)
 
 ## GTK theming (matugen, GTK3 only — GTK4 is a known dead end)
 
@@ -449,6 +458,29 @@ assert the rendered colour equals the seed — the mixer transforms it.
 
 Discord is deliberately untouched: it exposes no theming surface at all, and the
 only route is a loader that patches `app.asar`, which re-breaks on every update.
+
+## opencode (two config files, two different jobs)
+
+`opencode/opencode.json` is the **server/project** config and `opencode/cli.json` is the
+**terminal client** config. They are separate files with separate schemas and must not be
+merged — `theme`, `animations`, `keybinds`, `session.*` and `mini.*` are TUI-only and are
+rejected in `opencode.json`, while `plugin`, `agent`, `mcp`, `provider` and `permission` are
+server-side and have no place in `cli.json`. The plugin array key is singular: `"plugin"`.
+
+Both are linked **individually**, not as a whole `~/.config/opencode` symlink, because that
+directory also holds `service.json` — the per-machine service password. It is gitignored and
+stays in `~/.config/opencode`; a fresh machine gets its own when the service first starts.
+
+`plugin: ["opencode-model-router"]` is resolved from npm, not from this repo: the package is
+fetched into `~/.cache/opencode/npm/` on first run, and the router's recents/favourites live
+in `~/.local/state/opencode/model.json` (machine state, deliberately not tracked). The
+installed binary is `~/.opencode/bin/opencode`, which `fish/config.fish` puts on `PATH`; it
+has no distro package, so a fresh machine installs it with
+`curl -fsSL https://opencode.ai/install | bash` (see `install.md`).
+
+`session.permissions: "autoaccept"` in `cli.json` means the TUI approves every permission
+request without asking. It is here on purpose, but it is a trust decision, not a preference —
+drop it to `"prompt"` on a machine you do not fully trust.
 
 ## install.md
 

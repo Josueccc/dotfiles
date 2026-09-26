@@ -26,3 +26,9 @@ gtk/gtk-4.0/colors.css
 # file (~/.local/state/waypaper/state.ini, via use_xdg_state = True) carries the
 # volatile wallpaper/backend/folder values, so this file stays stable.
 waypaper/config.ini
+
+# opencode's service password, generated per machine by the background service.
+# install.sh symlinks opencode.json and cli.json individually and deliberately
+# leaves this file in ~/.config/opencode, so it should never reach the repo —
+# the entry is defensive in case the whole opencode/ dir is ever linked instead.
+opencode/service.json

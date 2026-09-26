@@ -150,6 +150,12 @@ symlink "$DOTFILES/btop"                   "$HOME/.config/btop"
 symlink "$DOTFILES/alacritty"              "$HOME/.config/alacritty"
 symlink "$DOTFILES/kitty"                  "$HOME/.config/kitty"
 
+# OpenCode. Linked file by file, NOT the whole ~/.config/opencode directory:
+# opencode also keeps machine-generated state there (service.json holds the
+# service password), and that must never end up in the repo.
+symlink "$DOTFILES/opencode/opencode.json" "$HOME/.config/opencode/opencode.json"
+symlink "$DOTFILES/opencode/cli.json"      "$HOME/.config/opencode/cli.json"
+
 # Desktop configs — only when mode=desktop
 if [ "$MODE" = "desktop" ]; then
     echo ""
@@ -160,6 +166,7 @@ if [ "$MODE" = "desktop" ]; then
     symlink "$DOTFILES/hyprland/hypridle.conf"      "$HOME/.config/hypr/hypridle.conf"
     symlink "$DOTFILES/hyprland/hyprsunset.conf"    "$HOME/.config/hypr/hyprsunset.conf"
     symlink "$DOTFILES/hyprland/scripts/nightlight.sh" "$HOME/.config/hypr/scripts/nightlight.sh"
+    symlink "$DOTFILES/hyprland/scripts/dim-ramp.sh"   "$HOME/.config/hypr/scripts/dim-ramp.sh"
     symlink "$DOTFILES/hyprland/hyprqt6engine.conf" "$HOME/.config/hypr/hyprqt6engine.conf"
     symlink "$DOTFILES/rofi"                        "$HOME/.config/rofi"
     symlink "$DOTFILES/swaync"                      "$HOME/.config/swaync"

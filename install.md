@@ -92,6 +92,14 @@ These have no dotfile tracked in this repo — install manually or via package m
 - bluez-utils (bluetoothctl CLI)
 - blueman (Bluetooth manager GUI + system tray)
 
+## AI / agent tooling
+
+- opencode (terminal AI agent — config tracked in `opencode/`, installed by its own script
+  because there is no distro package: `curl -fsSL https://opencode.ai/install | bash`, which
+  drops the binary in `~/.opencode/bin`; that path is already added in `fish/config.fish`.
+  The `opencode-model-router` plugin is pulled from npm automatically on first run — no
+  manual step. Log in once with `opencode auth login`.)
+
 ## Fonts
 
 - JetBrainsMono Nerd Font (terminal, nvim, tmux, rofi)
