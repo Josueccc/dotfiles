@@ -195,7 +195,12 @@ hl.config({
 hl.config({
     input = {
         kb_layout    = "us, latam",
-        kb_variant   = "intl,",
+        -- Standard US, not "intl," (US international with dead keys). The variant
+        -- list is positional and parallel to kb_layout, so the empty first entry
+        -- is the US layout's "no variant" and the trailing comma is Latam's.
+        -- With "intl," the accented characters are dead keys: it types ñ as
+        -- <dead-accent> then n, which is easy to forget you are doing.
+        kb_variant   = ",",
         follow_mouse = 1,
         sensitivity  = 0,
 
@@ -231,7 +236,7 @@ hl.bind(mainMod .. " + P",      hl.dsp.window.pseudo())
 hl.bind(mainMod .. " + J",      hl.dsp.layout("togglesplit"))
 hl.bind(mainMod .. " + F",      hl.dsp.window.fullscreen())
 
--- Toggle keyboard layout (EN intl ↔ ES latam). This was
+-- Toggle keyboard layout (US ↔ ES latam). This was
 -- `hyprctl dispatch switchxkblayout all next`, which is a hard error on this
 -- machine: its hyprctl is the Lua build, so dispatch arguments are parsed as Lua
 -- and the key did nothing. See hyprland/scripts/toggle-kb-layout.sh for why that

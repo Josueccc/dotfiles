@@ -13,11 +13,25 @@
 # What does work is rewriting the layout list. `input:kb_layout` and
 # `input:kb_variant` are *parallel* lists, so both have to move together or the
 # "intl" variant lands on the Spanish layout. Rotating both flips the live keymap
-# between "English (US, intl., with dead keys)" and "Spanish (Latin American)",
-# and rotating back restores it.
+# between "English (US)" and "Spanish (Latin American)", and rotating back
+# restores it.
 set -u
 
 command -v hyprctl >/dev/null 2>&1 || exit 0
+
+# Serialise the read-modify-write below. Toggling is read → compute → write, so
+# two presses arriving together (key repeat, or a mash) can both read the same
+# list and both write the same answer, and one press is silently lost — the
+# "I have to wait a moment before it cycles" symptom. The race is intermittent,
+# not a fixed delay, so it reproduces maybe one press in three and looks like a
+# flaky key rather than a bug. Under a lock the second press waits, then reads
+# what the first one wrote, so every press toggles. The wait is bounded, so a
+# wedged process cannot hold the key hostage.
+RUNDIR="${XDG_RUNTIME_DIR:-/tmp}"
+if command -v flock >/dev/null 2>&1; then
+    exec 9>>"$RUNDIR/kb-layout.lock"
+    flock -w 2 9 || exit 0
+fi
 
 # A classic (non-Lua) hyprctl has the real dispatcher and no eval subcommand, so
 # use it there and keep this config portable to a stock Hyprland.
@@ -43,6 +57,15 @@ rotate() {
     local rest="${1#*,}" first="${1%%,*}"
     rest="${rest#"${rest%%[![:space:]]*}"}"   # drop leading space
     first="${first%"${first##*[![:space:]]}"}"  # drop trailing space
+
+    # Every entry empty (the usual case now that the layout is plain US, so
+    # kb_variant is all commas). Keep the canonical "," instead of drifting to
+    # ", " and no longer matching what hyprland.lua declares.
+    if [ -z "$rest" ] && [ -z "$first" ]; then
+        printf ','
+        return
+    fi
+
     printf '%s, %s' "$rest" "$first"
 }
 
