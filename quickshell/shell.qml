@@ -240,10 +240,17 @@ PanelWindow {
     // ── Open / close ─────────────────────────────────────────────────────────
     function open_() {
         open = true;
+        // Both of these, not just one. Resetting `filter` alone leaves the
+        // TextInput still showing the previous query while the list is filtered
+        // by an empty string, because they are two separate pieces of state.
+        search.text = "";
         filter = "";
         appList.currentIndex = 0;
         appList.positionViewAtBeginning();
-        refresh.forceActiveFocus();
+        // Focus the TextInput itself rather than a proxy item, so it does its
+        // own text editing — insertion, backspace, cursor, selection, Ctrl+U —
+        // instead of this file reimplementing it badly.
+        search.forceActiveFocus();
     }
     function close() { open = false; }
 
@@ -447,6 +454,37 @@ PanelWindow {
                                 root.filter = text;
                                 appList.currentIndex = 0;
                                 appList.positionViewAtBeginning();
+                            }
+
+                            // Navigation keys only. Everything else is left
+                            // UNACCEPTED on purpose, which hands the key back to
+                            // the TextInput so it inserts the character itself.
+                            //
+                            // The first version did the opposite: a catch-all
+                            // `else { search.text = event.text }`, which
+                            // REPLACED the whole query with a single character,
+                            // so typing "kit" left only "t" on screen. It reads
+                            // like the field losing focus, not like a string
+                            // being overwritten, which is why it survived review.
+                            Keys.onPressed: event => {
+                                if (event.key === Qt.Key_Escape) {
+                                    root.close();
+                                    event.accepted = true;
+                                } else if (event.key === Qt.Key_Return
+                                        || event.key === Qt.Key_Enter) {
+                                    root.launch(root.apps[appList.currentIndex]);
+                                    event.accepted = true;
+                                } else if (event.key === Qt.Key_Down) {
+                                    if (appList.count > 0)
+                                        appList.currentIndex = (appList.currentIndex + 1) % appList.count;
+                                    event.accepted = true;
+                                } else if (event.key === Qt.Key_Up) {
+                                    if (appList.count > 0)
+                                        appList.currentIndex =
+                                            (appList.currentIndex - 1 + appList.count) % appList.count;
+                                    event.accepted = true;
+                                }
+                                // No else branch. Falling through IS the fix.
                             }
                             Text {
                                 anchors.verticalCenter: parent.verticalCenter
@@ -722,32 +760,8 @@ PanelWindow {
         }
     }
 
-    // Keyboard. Lives on the window because the window takes focus when it
-    // opens; `refresh` is the item that actually holds it.
-    Item {
-        id: refresh
-        focus: root.open
-        Keys.onPressed: event => {
-            if (event.key === Qt.Key_Escape) {
-                root.close();
-                event.accepted = true;
-            } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-                root.launch(root.apps[appList.currentIndex]);
-                event.accepted = true;
-            } else if (event.key === Qt.Key_Down) {
-                if (appList.count > 0) appList.currentIndex = (appList.currentIndex + 1) % appList.count;
-                event.accepted = true;
-            } else if (event.key === Qt.Key_Up) {
-                if (appList.count > 0)
-                    appList.currentIndex = (appList.currentIndex - 1 + appList.count) % appList.count;
-                event.accepted = true;
-            } else {
-                // Everything else is a filter character. Handing it to the
-                // TextInput here (rather than letting focus sit on it) is what
-                // makes typing work without clicking the field first.
-                search.text = event.text;
-                event.accepted = true;
-            }
-        }
-    }
+    // There is deliberately no `focus: root.open` proxy Item here any more.
+    // Two items both claiming focus is a silent, intermittent bug waiting to
+    // happen: the TextInput has the real focus, so this one would only ever
+    // steal key events from it. Keyboard handling lives on `search` instead.
 }

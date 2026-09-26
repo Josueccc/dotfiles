@@ -396,11 +396,26 @@ QML traps this file already pays for, all documented inline and in
   that env var hands a palette to QWidget apps, and a QML scene gets no colours
   from `kdeglobals`. The overlay themes itself from the generated JSON.
 
-Not yet verified: the keyboard (no `wtype`/`ydotool` installed, so `Escape`,
-arrows, `Enter` and type-to-filter are wired but unexercised), and the
-`blur-quickshell` layer rule — see the OPEN entry in RIZZ-ROADMAP.md, where
-`rofi` fails the same blur test, so it is a pre-existing session issue rather
-than a quickshell one.
+Keyboard handling lives on the `TextInput` via `Keys.onPressed`, and
+`open_()` calls `search.forceActiveFocus()`. The `Keys` handler deals with
+Escape/Enter/Up/Down only and **deliberately has no `else`** — anything
+unaccepted falls through to the `TextInput`, which does its own editing. An
+earlier catch-all `else { search.text = event.text }` replaced the whole query
+with a single character, so typing "kit" left "t"; it looked like a focus
+problem rather than an overwrite. There is also no proxy `Item` with
+`focus: root.open` — two items competing for focus is a silent intermittent bug.
+
+This machine has no `wtype`/`ydotool`, but you do not need them:
+
+    hyprctl eval "hl.dispatch(hl.dsp.send_shortcut({ mods = '', key = 'k' }))"
+
+delivers a real key event to the **focused client**. `mods` is required and must
+be a string. It does *not* fire keybinds, which is why `Super+D` and
+`Super+space` are still verified only by `hyprctl binds`.
+
+Not yet verified: the `blur-quickshell` layer rule — see the OPEN entry in
+RIZZ-ROADMAP.md, where `rofi` fails the same blur test, so it is a pre-existing
+session issue rather than a quickshell one.
 
 ## Firefox theming (wallust → Design System tokens)
 

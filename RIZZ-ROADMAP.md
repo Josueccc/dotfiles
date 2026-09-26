@@ -139,9 +139,11 @@ two idle file managers are nearly indistinguishable.
 
   Verified: IPC toggle, month grid, launcher filter/icons/scroll, MPRIS against
   VLC (including the `|| "Unknown Title"` fallbacks and the `canXyz` capability
-  gates), CPU/RAM/load. Not verified: **the keyboard** (no `wtype`/`ydotool` on
-  this machine, so `Escape`/arrows/`Enter`/type-to-filter are wired but
-  unexercised) and the blur layer rule — see the session notes.
+  gates), CPU/RAM/load, and the **whole keyboard** — type-to-filter, Backspace,
+  Up/Down, Escape, and Enter actually launching an app, all driven with real key
+  events (see the `send_shortcut` note below). Not verified: the
+  `blur-quickshell` layer rule, and `Super+D` itself, which needs a real
+  keypress.
 
 - [ ] **3.2 Absorb what quickshell does natively better** *(scope B, not
       started)* — `Services.Polkit` as a real agent, which would delete the
@@ -284,6 +286,10 @@ two idle file managers are nearly indistinguishable.
 - **A `Row` stops laying out if a child also sets anchors** — `anchors.right` inside a `Row` warns "Row will not function" and the row goes inert. Wrap in an `Item`
 - **`Quickshell.watchFiles` defaults to true and reloads the entire config when any file in the shell dir changes** — so a `generated-colors.json` in that directory made every wallpaper change reload the shell. It is the same trap as `hl.env`, wearing a different hat: a file-driven feature and a file-driven reload path in the same directory
 - **A CPU percentage from `/proc/stat` needs two samples** — it is cumulative jiffies, so the first tick can only set a baseline. The first two seconds read `0%`, which looks like a broken monitor
+- **`hyprctl eval "hl.dispatch(hl.dsp.send_shortcut({ mods = '', key = 'k' }))"` injects real key events into the focused client** — this machine has no `wtype`, `ydotool` or `dotool`, and the 4.4 notes record `hl.dsp.send_shortcut` as "did not trigger binds in any of the shapes tried". Both are true and they describe different things: it does **not** go through the bind dispatcher, but it **does** deliver to the focused window. So any focused client can be keyboard-tested with nothing installed. `mods` is required and must be a string (`''` for none) — omitting it errors, and so does `mods = {}`. This is how 3.1's entire keyboard got verified. It also means a *keybind* still cannot be tested this way, which is why `Super+space` and `Super+D` remain stuck on "the bind is registered" as their only evidence
+- **A catch-all `else` in a QML `Keys` handler silently eats text input** — routing unhandled keys with `search.text = event.text` replaces the query with one character, so typing "kit" leaves "t". It reproduces on the first keypress but reads like the field losing focus rather than a string being overwritten, which is how it got shipped. Handle only the keys you want and leave the rest **unaccepted**, so the focused item does its own editing
+- **Two items both claiming focus is a silent, intermittent bug** — a proxy `Item` carrying `focus: root.open` next to a `TextInput` that also wants focus. Only one wins and which one is not deterministic
+- **Resetting one half of a two-variable piece of state desyncs the other half** — `open_()` cleared the `filter` property but not the `TextInput`'s own `text`, so reopening showed the previous query in the field while the list was filtered by an empty string
 - **OPEN: no layer-rule blur is rendering in this session, and it is not quickshell's fault.** The `blur-quickshell` rule was added for 3.1 and does nothing — but `rofi`, which has had `blur-rofi` since Phase 0, fails the same control test, with terminal text behind it perfectly sharp. `decoration:blur` is enabled (size 6, 2 passes, `new_optimizations` true), `hyprctl configerrors` is empty, and `hyprctl reload` returns `ok`. Applying a rule at runtime via `hyprctl eval "hl.layer_rule({…})"` also returns `ok` and changes nothing observable — another `ok is not a result`. Session started 09:12:57, config edited 11:27, so the usual stale-session explanation applies and **this needs a relog to test properly**. Either blur regressed at some point in Phase 0 and was never re-checked, or 0.56.2's Lua build does not re-register layer rules on reload. Note `hyprctl layerrules` does not exist on this build ("unknown request"), so there is no way to read the rules back — `hyprctl keyword` is also refused ("keyword can't work with non-legacy parsers"). Worth a dedicated item.
 
 ## ⚡ Perf notes (GTX 1650 + Vega iGPU)

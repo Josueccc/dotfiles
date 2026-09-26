@@ -22,6 +22,25 @@ Autostarted from `hyprland/hyprland.lua` on `hyprland.start`, and bound to
 
 ## Traps, in the order they cost time
 
+**A catch-all `else` in a `Keys` handler silently destroys text input.** The
+first version routed every unhandled key with `search.text = event.text`, which
+*replaces* the query with one character — typing "kit" left "t" on screen. It
+reproduces on the very first keypress, but it reads like the field losing focus
+rather than a string being overwritten, which is how it got shipped. The rule:
+a `Keys` handler should handle only the keys it wants and leave the rest
+**unaccepted**, so the focused item does its own text editing. `Keys.onPressed`
+on the `TextInput` itself, plus `search.forceActiveFocus()`, also means
+backspace, cursor movement, selection and Ctrl+U come for free.
+
+**Two items both claiming focus is a silent bug.** There was a proxy `Item` with
+`focus: root.open` sitting alongside the `TextInput`. Only one item can hold
+focus, and the wrong one winning intermittently is the worst shape of bug.
+Deleted — the `TextInput` takes focus directly and the proxy is gone.
+
+**Resetting one half of a two-variable piece of state desyncs the other half.**
+`open_()` cleared `filter` but not `search.text`, so reopening showed the
+previous query in the field while the list was filtered by an empty string.
+
 **An `id` can silently lose to a Qt-internal type.** The palette `FileView` was
 originally `id: palette`. `palette.adapter` was then undefined in every binding
 — 1322 `TypeError: Cannot read property 'X' of undefined` warnings — while
@@ -80,16 +99,18 @@ the first two seconds, which looks like a broken monitor and is not.
   and the `canGoPrevious` / `canTogglePlaying` / `canGoNext` capability gates
   both do the right thing.
 - System monitor: CPU, RAM (`MemAvailable`, not `MemFree`), load average.
+- **Keyboard, all of it**, driven with real key events:
+  `hyprctl eval "hl.dispatch(hl.dsp.send_shortcut({ mods = '', key = 'k' }))"`
+  — type-to-filter (`kit` → one result), Backspace (`ki`), Up/Down moving the
+  highlight 0→1→2→1, Escape closing, and Enter launching (a real kitty window
+  appeared, `hyprctl clients` 1→2, and the overlay closed). No `wtype`/`ydotool`
+  needed; see the session notes in RIZZ-ROADMAP.md.
 - **Palette follows the wallpaper live, with no restart** — re-themed while the
   shell was running and every accent changed, verified by pixel-sampling
   (`R=G=B` on a greyscale wallpaper's palette).
 
 ## Not verified
 
-- **Keyboard.** `Escape` / arrows / `Enter` / type-to-filter are wired through
-  `Keys.onPressed` and the `TextInput`, but no synthetic-keyboard tool is
-  installed on this machine (`wtype` and `ydotool` both absent), so it has not
-  been exercised. Needs a human at the keyboard.
 - **The blur layer rule.** `hyprland.lua` adds `blur-quickshell` for this
   namespace, but no layer-rule blur is rendering in the session this was built
   in — `rofi` fails the same control test, and the rules have been in the
@@ -99,6 +120,10 @@ the first two seconds, which looks like a broken monitor and is not.
   `rgba(0,0,0,0.55)` gives over a terminal.
 - **Multi-monitor.** The `PanelWindow` is anchored to all four edges and so
   spans every output, but only one monitor has been used.
+- **`Super+D` itself.** `hyprctl binds` shows the bind registered as
+  `dispatcher: __lua`, and the command it runs is verified by hand, but firing
+  it needs a real keypress — `send_shortcut` delivers to the focused *client*,
+  not through the bind dispatcher.
 
 ## Deliberately not here
 
