@@ -216,7 +216,14 @@ local mainMod = "SUPER"
 
 hl.bind(mainMod .. " + Return", hl.dsp.exec_cmd(terminal))
 hl.bind(mainMod .. " + Q",      hl.dsp.window.close())
-hl.bind(mainMod .. " + M",      hl.dsp.exec_cmd("command -v hyprshutdown >/dev/null 2>&1 && hyprshutdown || hyprctl dispatch exit"))
+-- Logout: hyprshutdown first, because it stops apps cleanly. The fallbacks are
+-- the same Lua-hyprctl trap as the layout toggle — `hyprctl dispatch exit` is a
+-- parse error there — so the eval form comes first and the classic form stays as
+-- the last resort for a stock Hyprland. Single-quoted so the inner double quotes
+-- survive. The exit dispatcher itself is the one call here that cannot be tested
+-- without ending the session, so it is unproven by design; if hyprshutdown ever
+-- goes missing, check this line before assuming the key is dead.
+hl.bind(mainMod .. " + M",      hl.dsp.exec_cmd('command -v hyprshutdown >/dev/null 2>&1 && hyprshutdown || hyprctl eval "hl.dispatch(hl.dsp.exit())" || hyprctl dispatch exit'))
 hl.bind(mainMod .. " + E",      hl.dsp.exec_cmd(fileManager))
 hl.bind(mainMod .. " + V",      hl.dsp.window.float({ action = "toggle" }))
 hl.bind(mainMod .. " + R",      hl.dsp.exec_cmd(menu))
@@ -224,8 +231,13 @@ hl.bind(mainMod .. " + P",      hl.dsp.window.pseudo())
 hl.bind(mainMod .. " + J",      hl.dsp.layout("togglesplit"))
 hl.bind(mainMod .. " + F",      hl.dsp.window.fullscreen())
 
--- Toggle keyboard layout (EN intl ↔ ES latam)
-hl.bind(mainMod .. " + space", hl.dsp.exec_cmd("hyprctl dispatch switchxkblayout all next"))
+-- Toggle keyboard layout (EN intl ↔ ES latam). This was
+-- `hyprctl dispatch switchxkblayout all next`, which is a hard error on this
+-- machine: its hyprctl is the Lua build, so dispatch arguments are parsed as Lua
+-- and the key did nothing. See hyprland/scripts/toggle-kb-layout.sh for why that
+-- cannot be fixed from a dispatcher call, and why the script also keeps this
+-- working on a stock Hyprland.
+hl.bind(mainMod .. " + space", hl.dsp.exec_cmd("~/.config/hypr/scripts/toggle-kb-layout.sh"))
 
 -- Focus
 hl.bind(mainMod .. " + left",  hl.dsp.focus({ direction = "left" }))

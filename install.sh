@@ -167,6 +167,7 @@ if [ "$MODE" = "desktop" ]; then
     symlink "$DOTFILES/hyprland/hyprsunset.conf"    "$HOME/.config/hypr/hyprsunset.conf"
     symlink "$DOTFILES/hyprland/scripts/nightlight.sh" "$HOME/.config/hypr/scripts/nightlight.sh"
     symlink "$DOTFILES/hyprland/scripts/dim-ramp.sh"   "$HOME/.config/hypr/scripts/dim-ramp.sh"
+    symlink "$DOTFILES/hyprland/scripts/toggle-kb-layout.sh" "$HOME/.config/hypr/scripts/toggle-kb-layout.sh"
     symlink "$DOTFILES/hyprland/hyprqt6engine.conf" "$HOME/.config/hypr/hyprqt6engine.conf"
     symlink "$DOTFILES/rofi"                        "$HOME/.config/rofi"
     symlink "$DOTFILES/swaync"                      "$HOME/.config/swaync"
