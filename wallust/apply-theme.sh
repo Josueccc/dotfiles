@@ -8,7 +8,7 @@
 #                            to re-run — never overwrites real wallust output).
 #
 # Wired up via waypaper's post_command, so every wallpaper change re-themes:
-#   hyprland borders · waybar · rofi · swaync · kitty · alacritty   (wallust)
+#   hyprland borders · waybar · rofi · swaync · kitty · alacritty · tmux  (wallust)
 #   GTK3 apps: thunar, blueman, gnome-disks                        (matugen)
 #   Firefox chrome + about: pages                                 (wallust)
 #
@@ -162,6 +162,34 @@ if [ "${1:-}" = "--seed" ]; then
         '  --color-accent-primary-active: #585b70 !important;' \
         '  --color-accent-primary-selected: #bac2de !important;' \
         '}'
+    # tmux palette. tmux owns ~/.tmux.conf (not a config dir), so the generated
+    # file lands in ~/.config/tmux/, which is outside this repo and therefore
+    # needs no .gitignore entry. The values duplicate the static block in
+    # .tmux.conf for the same reason the firefox ones duplicate fallback.css.
+    seed "$HOME/.config/tmux/generated-colors.conf" \
+        '# Static fallback palette (Catppuccin Mocha). Overwritten by wallust.' \
+        '# One option per line: tmux set takes at most one name/value pair.' \
+        'set -g default-terminal "tmux-256color"' \
+        'set -g default-colour "#cdd6f4"' \
+        'set -g colour0 "#45475a"' 'set -g colour1 "#f38ba8"' \
+        'set -g colour2 "#a6e3a1"' 'set -g colour3 "#f9e2af"' \
+        'set -g colour4 "#89b4fa"' 'set -g colour5 "#cba6f7"' \
+        'set -g colour6 "#94e2d5"' 'set -g colour7 "#bac2de"' \
+        'set -g colour8 "#585b70"' 'set -g colour9 "#f38ba8"' \
+        'set -g colour10 "#a6e3a1"' 'set -g colour11 "#f9e2af"' \
+        'set -g colour12 "#89b4fa"' 'set -g colour13 "#cba6f7"' \
+        'set -g colour14 "#94e2d5"' 'set -g colour15 "#a6adc8"'
+
+    seed "$HOME/.config/tmux/generated-styles.conf" \
+        '# Static fallback styles (Catppuccin Mocha). Overwritten by wallust.' \
+        '# Hex literals, not colour names: only these can be re-sourced live.' \
+        'set -g status-style "bg=#45475a,fg=#bac2de"' \
+        'set -g status-left "#[fg=#89b4fa,bold] #S #[default]"' \
+        'set -g pane-border-style "fg=#585b70"' \
+        'set -g pane-active-border-style "fg=#89b4fa"' \
+        'set -g message-style "fg=#45475a,bg=#f9e2af,bold"' \
+        'set -g message-command-style "fg=#45475a,bg=#89b4fa,bold"' \
+        'set -g mode-style "fg=#45475a,bg=#f9e2af,bold"'
     exit 0
 fi
 
@@ -182,6 +210,12 @@ if [ -z "$wallpaper" ] || [ ! -f "$wallpaper" ]; then
 fi
 
 log "theming from $wallpaper"
+
+# wallust does not create the target directory, and ~/.config/tmux does not
+# exist on a fresh install — without this the tmux template silently fails and
+# .tmux.conf falls back to its static Catppuccin palette.
+mkdir -p "$HOME/.config/tmux"
+
 wallust run "$wallpaper" >> "$LOG" 2>&1 || { log "wallust failed"; exit 1; }
 
 # GTK3 (thunar, blueman, gnome-disks…) is themed by matugen, not wallust.
@@ -213,4 +247,24 @@ fi
 swaync-client -rs >/dev/null 2>&1 &
 pkill -USR1 -x kitty 2>/dev/null      # kitty reloads config on SIGUSR1
 hyprctl reload >/dev/null 2>&1 &      # border gradient picks up new colors
+
+# tmux: re-source ONLY the styles file. The palette half (colourN,
+# default-colour) is fixed at server start — `set -g colour4` is valid in a
+# config file and fails at runtime with "invalid option" — and the session-
+# scoped options (copy-mode-style, mode-keys-style) fail the same way, so
+# sourcing that file here would return non-zero and print ~20 errors on every
+# wallpaper change. The styles carry literal hex precisely so they can be
+# pushed into a live server. Panes still follow the wallpaper: kitty has its
+# own live palette.
+#
+# Probed with `tmux list-sessions`, NOT `pgrep -x tmux`: the server process's
+# comm is the string "tmux: server", so an exact-name pgrep never matches it
+# and the whole reload was a silent no-op. Ask tmux itself.
+if tmux list-sessions >/dev/null 2>&1; then
+    if tmux source-file -q "$HOME/.config/tmux/generated-styles.conf" >/dev/null 2>&1; then
+        log "tmux styles updated"
+    else
+        log "tmux source-file failed (see $LOG)"
+    fi
+fi
 exit 0

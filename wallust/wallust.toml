@@ -25,3 +25,13 @@ alacritty = { template = "colors-alacritty.toml", target = "~/.config/alacritty/
 # firefox/link-profile.sh symlinks it into <profile>/chrome/ alongside
 # userChrome.css, which is what actually @imports it.
 firefox   = { template = "colors-firefox.css",   target = "~/.dotfiles/firefox/generated-colors.css" }
+# tmux's target dir is not in the repo (it owns ~/.tmux.conf, which is), so the
+# generated files live outside the repo and need no .gitignore entry. apply-
+# theme.sh creates the directory, because wallust does not.
+#
+# Two files, not one, because tmux freezes its palette at server start: the
+# colourN block is startup-only, while the styles carry literal hex and can be
+# re-sourced live. Merging them makes every wallpaper change log a source-file
+# error. See the comments inside the templates.
+tmux      = { template = "colors-tmux.conf",        target = "~/.config/tmux/generated-colors.conf" }
+tmuxstyle = { template = "colors-tmux-styles.conf", target = "~/.config/tmux/generated-styles.conf" }

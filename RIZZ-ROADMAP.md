@@ -113,7 +113,27 @@ two idle file managers are nearly indistinguishable.
 
 - [ ] **4.1 Live video wallpapers** — `mpvpaper` replaces the `swaybg` waypaper backend
 - [x] **4.2 awww transitions** — done. `backend = awww` in `waypaper/config.ini` (waypaper 2.9 has a native awww backend: it starts the daemon, kills the old painter, reads the `swww_transition_*` keys). `wave` @30° / 1.2s / 60fps, verified animating via mid-transition screenshots. Picker now goes through `waypaper --wallpaper` so `post_command` → `apply-theme.sh` keeps firing; the awww/swaybg fallbacks call it themselves. Also fixed `folder` (was `~/Downloads`, empty → now `~/Pictures/wallpapers`)
-- [ ] **4.3 Terminal flex** — transparency tuned to the blur, nicer cursor, tmux statusline recolored to the live palette
+- [x] **4.3 Terminal flex** — done, and the transparency number is measured, not taste.
+      Opacity is **0.85** in both kitty and alacritty: a translucent terminal sits over a *blurred*
+      wallpaper, so the contrast that matters is not the palette pair wallust already guarantees but
+      the foreground against the wallpaper showing through. Swept over 51 wallpapers, each with its
+      own wallust palette, worst case = brightest 1% of the blurred image: 0.60 → 21/51 wallpapers
+      clear 4.5:1, 0.80 → 49/51, **0.85 → 51/51** (worst 5.29). First attempt used one wallpaper's
+      palette for all of them and reported failures that were an artefact of the substitution.
+      `dynamic_background_opacity` off (otherwise kitty snaps opaque on focus loss, a visible jump
+      over a blur); `background_blur` stays 0 because the compositor already blurs.
+      **tmux follows the wallpaper too**, in two generated files split by the one rule that decides
+      it: tmux freezes its palette at server start (`set -g colour4` is valid in a config file and
+      fails at runtime with "invalid option"), so the styles are written as literal hex and
+      re-sourced live, while `colourN` stays startup-only. Hand-rolled powerline statusline
+      replaced `tmux-tokyo-night`, which hardcoded colours that would win over the wallpaper. No
+      clock: tmux does not strftime-expand status lines at all (`%H:%M` renders literally), the
+      alternative forks a shell per tick, and waybar already has one in `modules-center`.
+      Verified live: `4:limpio*` filled accent pill, `󰐄` separators, `cachyos-x8664` right-aligned,
+      beam cursor, no tofu — which required pinning `JetBrainsMono Nerd Font` in *both* terminals,
+      since alacritty's `family = "monospace"` resolves to Noto Sans Mono and has no Nerd glyphs.
+      Along the way, kitty 0.49 had renamed every cursor option (`cursor_beam` → `cursor_shape`,
+      `cursor_blink` → `cursor_blink_interval`, …) and rejects the old names outright
 - [~] **4.4 hypridle chain** — the *timing* is fixed (5 min dim → 15 min lock → 25 min dpms off → 45 min suspend, was locking at 6). The **fade** is still missing: hypridle 0.1.8 is the newest on Arch and rejects the `dpms` listener key, so the "fade into the blurred lock screen" wants a brightness ramp script in `on-timeout` instead — or a newer hypridle
 
 ## ⚫ Phase 5 — Bleed edge / someday
@@ -150,6 +170,12 @@ two idle file managers are nearly indistinguishable.
 - **The Qt6 fix was verified against the wrong app.** `qt6ct` themes plain Qt6 apps fine (pavucontrol is pixel-identical under `qt6ct` and `kde`) but KF6 apps override its palette and stay light. Dolphin: `#eff0f1` under qt6ct, `#1e1e2e` under `kde`. Checking that the plugin *loads* is not the same as checking a KF6 app is dark
 - **`hl.env` only applies at startup** — Hyprland parsed its config at 13:35:05, `hyprland.lua` was edited at 17:08:07, so the change was inert all session. `hyprctl setenv` returns "unknown request" on 0.56.2, so there is no live patch: **a correct env fix needs a relog before you can see any effect.** The most expensive trap in this repo
 - **`pkill -f <script>` matches the calling shell** when the pattern appears anywhere in its command line — it killed my own shell twice, and the empty output looked like a hang. Track PIDs in a file instead
+- **`pgrep -x tmux` never matches anything** — the server process's `comm` is the string `tmux: server`, so an exact-name pgrep exits 1 forever and the wallpaper-driven tmux reload was a silent no-op. Ask tmux (`tmux list-sessions`) instead of guessing process names
+- **One config error can abort the *rest* of the file and look like nothing happened** — tmux's `set` takes one name/value pair, so a second pair on the line raised "too many arguments" and every option after it was silently dropped, leaving `status-style` at tmux's default `bg=green,fg=black`. Verify a config by reading an option back, not by "it didn't complain"
+- **tmux resolves a palette index at draw time but freezes the palette at server start** — so a wallpaper theme can live-update its *styles* (hex literals) and never its `colourN` slots. Two things that read as bugs: an already-running tmux keeps the old palette until restart, and re-sourcing a name-based style faithfully repaints the *old* accent
+- **A terminal's own parser is the only local oracle for its option names** — kitty's man page is a pointer to the web, `--help` lists no options and `--debug-config` prints nothing; `definition.py` has the table. Prove the file is being read by adding a bogus key and checking it *is* reported, because a clean run proves nothing on its own
+- **Borrowing one wallpaper's palette to reason about another invents failures** — the palette comes from the image, so the substitution decides the verdict, not the wallpaper. Run wallust per image in a sandbox (`wallust -d <dir>`) for each one's real palette
+- **Measure the surface you actually composite over, not the one you configured** — terminal legibility is foreground vs *blurred wallpaper*, which no palette pair can guarantee. Worst case is the brightest 1% of the blurred image, and Hyprland's `decoration.blur` `brightness` scales the backdrop down, so ignoring it makes the problem look worse than it is
 - **`brave --version` lies about the major version** — it prints `154.1.96.59`, and `1.96` is the *Chromium* milestone, not Brave's. It is Brave 154 / Chromium 154, which deleted the multi-colour native theme outright. Read the milestone as a browser version and you hunt for features that no longer exist
 - **`/usr/bin/brave` is a bash wrapper, not the binary** — the ELF is `/opt/brave-bin/brave`. Probing the wrapper with `strings` returns 0 hits for *everything*, which looks like confirmation of whatever you hoped for
 - **Firefox loads `userChrome.css` from `<profile>/chrome/`, not the profile root** — and libpref's own comment in `all.js` ("checking the user profile directory") is wrong too. Silent, no warning. Settle it with a two-colour probe (one colour in the root, another in `chrome/`, count the pixels), not by reading a guide

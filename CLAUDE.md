@@ -11,7 +11,7 @@ Every tool we configure together must have its dotfile **here**. Never edit conf
 | Tool | Dotfile in this repo | Symlink target |
 |------|---------------------|----------------|
 | Neovim | `nvim/` | `~/.config/nvim/` |
-| tmux | `.tmux.conf` | `~/.tmux.conf` |
+| tmux | `.tmux.conf` | `~/.tmux.conf` (palette → `~/.config/tmux/`, generated) |
 | Hyprland | `hyprland/hyprland.lua` (Lua API — new standard) | `~/.config/hypr/hyprland.lua` |
 | Rofi | `rofi/` | `~/.config/rofi/` |
 | Kitty | `kitty/` | `~/.config/kitty/` |
@@ -152,6 +152,113 @@ Two more traps in this area:
 Arch's waybar is built with `-Dcava=disabled`, so the native `cava` module is unavailable — the bar uses `custom/cava` running `waybar/scripts/cava.sh`. cava's normal terminal output cannot be piped (it emits ANSI escapes unconditionally and asks stdout for a window size), so `cava/config` switches it to `method = raw` + `data_format = ascii`: one digit (0-7) per bar, which the wrapper maps to block glyphs. Colors live in `waybar/style.css` (`#custom-cava`), which inherits the wallpaper palette. Never switch the cava config to `noncurses` without also changing the wrapper.
 
 Two things in that config that look wrong but aren't: `bar_delimiter` must stay a **printable** character (setting it to `0` means "emit a NUL byte", not "no separator" — the wrapper strips non-digits anyway, which is why it degrades to clean bars rather than garbage), and `noise_reduction` needs to be lowish (60) or the bars barely move on anything but loud audio. To check the bars are actually reacting, play a tone with `paplay /usr/share/sounds/alsa/Front_Center.wav` — `pactl play-file` does not exist.
+
+## Terminals and tmux
+
+Two terminals, kept deliberately in step: kitty is what `Super+Return` launches,
+alacritty is still installed. A statusline that looks right in one and wrong in
+the other is worse than not having it, so the font, cursor and opacity are
+mirrored across both.
+
+**The font must be named, never `monospace`.** The generic family resolves to
+Noto Sans Mono on this machine, which has no Nerd Font glyphs, so tmux's
+statusline separators and icons render as tofu. Both configs pin
+`JetBrainsMono Nerd Font`. If you add a glyph to the statusline, check it is in
+that font first — `fc-list ':charset=f0344' family` answers without installing
+anything (there is no `pip`/`fontTools` on this box).
+
+**kitty 0.49 renamed the cursor options and does not keep the old names as
+aliases** — they are rejected outright with "Ignoring unknown config key", and
+the rest of the file still loads, so it fails quietly:
+
+| old | new |
+|---|---|
+| `cursor_beam` | `cursor_shape beam` |
+| `cursor_blink` | `cursor_blink_interval 0.5` (0 **disables** blinking) |
+| `cursor_thickness` | `cursor_beam_thickness` |
+| `cursor_unfocused_opacity` | `cursor_shape_unfocused hollow` |
+
+`dynamic_padding` is not a kitty option at all (that is alacritty's). The
+authoritative list is `/usr/lib/kitty/kitty/options/definition.py` — the shipped
+man page is only a pointer to the online docs and `kitty --help` lists no
+options, so the binary's own parser is the only local oracle. Verify a change
+with `kitty -e true 2>&1 | grep -i ignor`, and prove the file is actually being
+read by temporarily adding a bogus key and confirming it *is* reported.
+
+### Terminal opacity is 0.85 because it was measured
+
+A translucent terminal sits over a *blurred* wallpaper, so the real contrast is
+not the palette's foreground-vs-background pair that wallust already
+guarantees — it is the foreground against the wallpaper showing through. Swept
+over 51 wallpapers, each with **its own** wallust palette, taking the brightest
+1% of the blurred image as the worst case (borrowing one wallpaper's palette for
+all of them reports failures that are an artefact of the substitution):
+
+| opacity | ≥4.5:1 | worst case |
+|---|---|---|
+| 0.60 | 21/51 | 2.06 (`linux-penguin.jpg`) |
+| 0.70 | 36/51 | 3.18 |
+| 0.80 | 49/51 | 4.34 |
+| **0.85** | **51/51** | **5.29** |
+
+0.85 is the lowest value that clears WCAG 4.5:1 for body text on every wallpaper
+tested. Hyprland's `decoration.blur` `brightness` (0.8) is already accounted
+for. Re-run the sweep in `/tmp/opencode/sweep-opacity.py` if you change it.
+`dynamic_background_opacity` is **off**: kitty otherwise snaps the background to
+fully opaque when the window loses focus, which on a blurred desktop is a
+visible jump on every alt-tab. `background_blur` stays 0 because the compositor
+already blurs the window — two blurs in series is just a softer, costlier
+version of the same effect.
+
+### tmux follows the wallpaper, in two files, because of one tmux rule
+
+`wallust` writes two files into `~/.config/tmux/` (outside the repo, so no
+`.gitignore` entry), and `.tmux.conf` sources both after its own static
+Catppuccin fallback:
+
+- `generated-colors.conf` — `colour0-15`, `default-colour`,
+  `default-terminal`, `terminal-features`. **Server-start only.**
+- `generated-styles.conf` — every style, in **literal `#RRGGBB`**. Re-sourced by
+  `apply-theme.sh` on each wallpaper change, so the status line recolours live.
+
+The split is not cosmetic. tmux resolves a palette *index* (`colour4`) at draw
+time, but the palette itself is **frozen at server start**: `set -g colour4` is
+valid in a config file and fails at runtime with "invalid option", as do
+`default-colour` and the session-scoped `copy-mode-style` / `mode-keys-style`.
+So a name-based style re-sourced live would faithfully repaint the *old* accent.
+A hex literal is resolved when the option is set and stored as RGB, which is
+what makes the live path possible. Merging the two files back together makes
+every wallpaper change log a `source-file` error and exit non-zero.
+
+Consequences worth knowing:
+
+- **A tmux server that is already running keeps its old palette** until it is
+  restarted; the styles update immediately, the `colourN` slots do not. Panes
+  still look right, because kitty underneath has its own live palette. Restart
+  tmux when convenient — do not `kill-server` with work in progress.
+- `apply-theme.sh` probes with `tmux list-sessions`, **not `pgrep -x tmux`**: the
+  server process's `comm` is the string `tmux: server`, so an exact-name pgrep
+  never matches and the whole reload was a silent no-op. Ask tmux itself.
+- Keep `generated-styles.conf` to options that are settable at runtime. Check
+  with `tmux source-file ~/.config/tmux/generated-styles.conf; echo $?` — it
+  must be `0`.
+- wallust's `{{colorN}}` already carries the leading `#`. Write `fg={{color4}}`,
+  not `fg=#{{color4}}`; the doubled hash is not a valid colour, tmux rejects
+  that one option, and the style silently keeps its previous value.
+- **tmux's `set` takes at most one name/value pair.** A second pair on the same
+  line raises "too many arguments (need at most 2)" and **aborts the rest of the
+  config file** — which is how an entire tmux config silently fell back to
+  tmux's defaults (`status-style` reading back as `bg=green,fg=black`) with no
+  error visible in the terminal. One option per line.
+- **`tmux-tokyo-night` was removed from the plugin list** because it hardcodes
+  its own colours, which would win over the wallpaper palette. The statusline is
+  hand-rolled instead. The plugin is still on disk; remove it with
+  `tpm uninstall adonespitogo/tmux-tokyo-night`.
+- **tmux does not strftime-expand status lines at all** — `%H:%M` renders
+  literally (verified on 3.7c). A tmux clock therefore has to be
+  `#(date +...)`, which forks a shell on every `status-interval` tick. There is
+  no clock in the statusline for a second reason anyway: waybar already owns one
+  in `modules-center`, and two clocks on one screen is worse than the saving.
 
 ## Firefox theming (wallust → Design System tokens)
 
