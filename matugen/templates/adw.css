@@ -1,0 +1,40 @@
+/*
+ * GTK4 / libadwaita palette — NOT WIRED UP. Kept for reference only.
+ *
+ * This template generates cleanly (0 unfilled placeholders), but writing its
+ * output to ~/.config/gtk-4.0/colors.css does not restyle any GTK4 app. Reasons,
+ * all verified by pixel-sampling gnome-calendar (the only real GTK4 app here):
+ *
+ *  - ~/.config/gtk-4.0/gtk.css is a symlink into the catppuccin theme, which has
+ *    no @import, so colors.css was never read at all.
+ *  - GTK4 honours `@import 'x.css'` but silently ignores `@import url('x.css')`.
+ *  - Pointing that symlink at a file which does import colors.css still fails:
+ *    gtk-dark.css is loaded at HIGHER priority than gtk.css, so the catppuccin
+ *    palette always wins. A forced-magenta probe proved the override never
+ *    reaches the widget.
+ *  - Root cause: Breeze does not define window_bg_color, but every catppuccin-*
+ *    theme does, so there is no user-level name left to override.
+ *
+ * To actually do this, build a custom theme directory that wraps the catppuccin
+ * one and point gtk-theme-name at it — don't retry the user gtk.css route.
+ * See the GTK4 section in CLAUDE.md and item 2.5 in RIZZ-ROADMAP.md.
+ */
+
+@define-color accent_color {{colors.primary_fixed_dim.default.hex}};
+@define-color accent_fg_color {{colors.on_primary_fixed.default.hex}};
+@define-color accent_bg_color {{colors.primary_fixed_dim.default.hex}};
+@define-color window_bg_color {{colors.surface_dim.default.hex}};
+@define-color window_fg_color {{colors.on_surface.default.hex}};
+@define-color headerbar_bg_color {{colors.surface_dim.default.hex}};
+@define-color headerbar_fg_color {{colors.on_surface.default.hex}};
+@define-color popover_bg_color {{colors.surface_dim.default.hex}};
+@define-color popover_fg_color {{colors.on_surface.default.hex}};
+@define-color view_bg_color {{colors.surface.default.hex}};
+@define-color view_fg_color {{colors.on_surface.default.hex}};
+@define-color card_bg_color {{colors.surface.default.hex}};
+@define-color card_fg_color {{colors.on_surface.default.hex}};
+@define-color sidebar_bg_color @window_bg_color;
+@define-color sidebar_fg_color @window_fg_color;
+@define-color sidebar_border_color @window_bg_color;
+@define-color sidebar_backdrop_color @window_bg_color;
+

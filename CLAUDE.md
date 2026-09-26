@@ -33,6 +33,8 @@ Every tool we configure together must have its dotfile **here**. Never edit conf
 | Qt6ct | `qt6ct/` | `~/.config/qt6ct/` |
 | Kvantum | `kvantum/` | `~/.config/Kvantum/` |
 | KDE globals | `kde/kdeglobals` | `~/.config/kdeglobals` |
+| GTK3 palette entry | `gtk/gtk-3.0/gtk.css` | `~/.config/gtk-3.0/gtk.css` |
+| matugen | `matugen/templates/` + `matugen/config.toml` | (run by `wallust/apply-theme.sh`) |
 | Bash aliases/scripts | `custom.sh` | sourced from `~/.bashrc` / `~/.zshrc` |
 
 ## When adding a new tool
@@ -62,15 +64,82 @@ Changing the wallpaper re-themes the whole desktop: waypaper runs `wallust/apply
 
 `hyprland/hypridle.conf` is a ladder: dim (5 min) → lock (15) → dpms off (25) → suspend (45). Keep suspend last — an earlier suspend will pull the machine out from under a long build while the screen is still lit. hypridle 0.1.8 is the newest on Arch and **rejects** the newer `dpms` and `check_interval` listener keys, so the display-off step is a `hyprctl dispatch dpms off` on a timer rather than a native DPMS listener. Verify a change with `hypridle -c ~/.config/hypr/hypridle.conf -v` (it prints each registered rule; the "already running" error is expected while the real daemon is up).
 
-## Qt6 theming (qt6ct, not hyprqt6engine)
+## GTK theming (matugen, GTK3 only — GTK4 is a known dead end)
 
-`hyprland/hyprland.lua` sets `QT_QPA_PLATFORMTHEME=qt6ct`. **Do not switch it back to `hyprqt6engine`**: the packaged hyprqt6engine 0.1.0 is built against `libhyprutils.so.12`, and the system ships hyprutils 0.14.2 (soname `.13`), so `libhyprqt6engine.so` fails to `dlopen`. Qt then silently falls back to the built-in light palette and every Qt6 app renders as a **white window on a dark desktop** — with no error anywhere, because `hyprqt6engine.conf` is never even read. The symptom is confusing: editing `hyprland/hyprqt6engine.conf` (color scheme, `style`) changes nothing at all.
+**GTK3 follows the wallpaper.** `wallust/apply-theme.sh` runs `matugen` alongside
+wallust, writing `~/.config/gtk-3.0/colors.css` from `matugen/templates/breeze.css`.
+`gtk/gtk-3.0/gtk.css` is a one-line `@import 'colors.css'` — that import is the whole
+mechanism. Verified: `deer-forest.jpg` → `#141318`, `serial_experiments_lain.png` →
+`#111318`, same window, only the wallpaper changed.
 
-If hyprqt6engine is ever rebuilt against a current hyprutils, switching back is a one-line change and `hyprland/hyprqt6engine.conf` becomes live again.
+Why matugen and not wallust for GTK: `gtk-theme-name=Breeze` uses ~84
+differently-named variables (`theme_base_color_breeze`, `insensitive_fg_color_breeze`, …)
+rather than adwaita's `accent_color`/`window_bg_color`. matugen's stock GTK template emits
+the adwaita names, which Breeze ignores, so `matugen/templates/breeze.css` is a
+hand-written template mapping Material tokens onto Breeze's names. It covers 84/84.
+
+The payoff is in the **accents**, not the surfaces. Stock Breeze hardcodes
+`theme_selected_bg_color_breeze #315bef` — a bright blue unrelated to any wallpaper, and
+the most visible colour in a file manager. matugen derives it (`#473f77` under
+deer-forest). Surfaces only shift `#242424` → `#141318`, which is nearly invisible; an
+earlier note claiming "the visual payoff is small" was measured on surfaces and missed this.
+
+**GTK4 is not wired up, and I could not make it work — don't retry blind.** `gnome-calendar`
+is the only real GTK4 app installed (blueman-manager is a Python script, so it is GTK3 via
+PyGObject; gnome-disks is GTK3 too), so the blast radius is one app. Findings:
+
+- `~/.config/gtk-4.0/gtk.css` is a symlink straight into
+  `/usr/share/themes/catppuccin-mocha-sapphire-standard+default/gtk-4.0/gtk.css`, which
+  contains **no `@import`** — so `~/.config/gtk-4.0/colors.css` was never read by
+  anything. It is a dead file.
+- GTK4 honours `@import 'x.css'` but **silently ignores `@import url('x.css')`**. Verified
+  by pixel-sampling gnome-calendar: the `url()` form did nothing, the bare-quoted form
+  worked. Easy trap.
+- Simply pointing that symlink at a file which imports `colors.css` **does not work**.
+  `gtk-dark.css` is a separate file GTK4 loads at *higher* priority than `gtk.css`, so the
+  catppuccin palette it defines always wins. Removing the `gtk-dark.css` symlink got
+  closer, but overriding `window_bg_color` from the user file still did not take, and a
+  forced-magenta probe proved the override never reached the widget.
+- This is consistent with the theme defining the names itself: Breeze does **not** define
+  `window_bg_color`, but every `catppuccin-*` theme does, so there is nothing to override.
+
+GTK4 is left exactly as found (both symlinks to the catppuccin theme). To revisit it, the
+promising route is a custom *theme* directory that wraps the catppuccin one rather than
+fighting its load order — not another user-level `gtk.css`.
+
+## Qt6 theming (`kde`, not hyprqt6engine or qt6ct)
+
+`hyprland/hyprland.lua` sets **`QT_QPA_PLATFORMTHEME=kde`** — that is
+`KDEPlasmaPlatformTheme6.so` from `plasma-integration`. It reads `~/.config/kdeglobals`
+and hands Qt the `[Colors:*]` palette, so `kde/kdeglobals` themes every Qt6 app. Dolphin
+(a KF6 app) samples `#1e1e2e` under it, which is the Catppuccin Mocha base.
+
+Three traps here, each of which cost a debugging session:
+
+- **Do not use `hyprqt6engine`.** The packaged 0.1.0 links against `libhyprutils.so.12`
+  while the system ships 0.14.2 (soname `.13`), so `libhyprqt6engine.so` fails to
+  `dlopen`, Qt silently falls back to its built-in **light** palette, and every Qt6 app
+  is a **white window on a dark desktop** — no error anywhere, because
+  `hyprqt6engine.conf` is never read. Editing it changes nothing, which sends you
+  hunting in the wrong file. Check with
+  `ldd /usr/lib/qt6/plugins/platformthemes/libhyprqt6engine.so`.
+
+- **Do not use `qt6ct` either, even though its plugin loads fine.** It themes plain Qt6
+  apps correctly, but KF6 apps override its palette and stay light. Same Dolphin window,
+  pixel-sampled: `qt6ct` → `#eff0f1`, `kde` → `#1e1e2e`. pavucontrol is *identical*
+  under both, which is exactly why a pavucontrol-only check hides the bug — **always
+  verify with a KF6 app (Dolphin), not just a plain Qt6 one.** `qt6ct/qt6ct.conf` is
+  kept as a fallback but is not the theme driver.
+
+- **Env changes need a relogin.** `hl.env` is applied when Hyprland parses its config at
+  startup; editing `hyprland.lua` later does not change the running session. Compare
+  `ps -o lstart= -p $(pgrep -x Hyprland)` with the file's mtime. That is how a correct
+  fix can sit in the repo for hours looking broken. This build has no `hyprctl setenv`
+  ("unknown request"), so it cannot be patched live.
 
 Two more traps in this area:
 - **qt6ct's `dusk.conf` is a LIGHT scheme**, despite the name. `qt6ct/qt6ct.conf` points at `qt6ct/colors/catppuccin-mocha.conf` instead, which is the Catppuccin Mocha palette written for qt6ct's fixed 22-value ColorScheme layout.
-- `kde/kdeglobals` shipped light Breeze values in its `[Colors:*]` sections; those are now dark Catppuccin, and `[KDE] ColorScheme` names the scheme.
+- `kde/kdeglobals` shipped light Breeze values in its `[Colors:*]` sections; those are now dark Catppuccin, and `[KDE] ColorScheme` names the scheme. It really is honoured — set `BackgroundNormal=255,0,255` and Dolphin turns magenta.
 
 ## Night light (hyprsunset)
 

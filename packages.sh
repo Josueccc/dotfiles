@@ -148,6 +148,10 @@ arch)
         xdg-desktop-portal-hyprland xdg-desktop-portal-gtk
         # GTK/Qt theming
         nwg-look kvantum qt5ct qt6ct
+        # provides KDEPlasmaPlatformTheme6.so = QT_QPA_PLATFORMTHEME=kde.
+        # Without it Qt6 apps silently fall back to a light palette.
+        plasma-integration
+        matugen
         # auth & keyring
         polkit-gnome gnome-keyring seahorse openssh
         # audio

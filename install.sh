@@ -171,6 +171,9 @@ if [ "$MODE" = "desktop" ]; then
     symlink "$DOTFILES/qt6ct"                       "$HOME/.config/qt6ct"
     symlink "$DOTFILES/kvantum"                     "$HOME/.config/Kvantum"
     symlink "$DOTFILES/kde/kdeglobals"              "$HOME/.config/kdeglobals"
+    # Makes GTK3 read the matugen-generated palette. Only the entry point is
+    # symlinked — colors.css next to it is generated and machine-specific.
+    symlink "$DOTFILES/gtk/gtk-3.0/gtk.css"         "$HOME/.config/gtk-3.0/gtk.css"
 fi
 
 # ── Shell rc sourcing ──────────────────────────────────────────────────────────

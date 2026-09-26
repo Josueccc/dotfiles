@@ -1,0 +1,33 @@
+# matugen — wallpaper-driven GTK3 palette.
+#
+# Run by wallust/apply-theme.sh on every wallpaper change (via waypaper's
+# post_command), not by hand. To try it manually:
+#
+#   cd matugen && matugen image ~/Pictures/wallpapers/<file> \
+#       --config ./config.toml --source-color-index 0
+#
+# --source-color-index 0 is required in that context: with no terminal attached
+# matugen cannot prompt when an image has several candidate source colours and
+# errors out instead.
+#
+# input_path is relative to this directory (apply-theme.sh cds here first);
+# output_path expands ~ correctly.
+#
+# Why a custom template is needed: matugen's stock GTK template emits adwaita
+# names (accent_color, window_bg_color), but this system runs
+# gtk-theme-name=Breeze, whose palette uses ~84 differently-named variables
+# (theme_base_color_breeze, ...). Those adwaita names are simply ignored.
+# templates/breeze.css maps Material tokens onto Breeze's names, 84/84.
+#
+# templates/adw.css is the GTK4 equivalent and is deliberately NOT referenced
+# here — GTK4 override does not work from the user config dir. See the header
+# in that file.
+
+[config]
+mode = "dark"
+type = "scheme-tonal-spot"
+json = "hex"
+
+[templates.gtk3]
+input_path  = "templates/breeze.css"
+output_path = "~/.config/gtk-3.0/colors.css"

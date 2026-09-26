@@ -47,11 +47,24 @@ end)
 
 hl.env("XCURSOR_SIZE", "24")
 hl.env("HYPRCURSOR_SIZE", "24")
--- qt6ct, not hyprqt6engine: the packaged hyprqt6engine links against
--- libhyprutils.so.12 and the system has 0.14.2 (soname .13), so its
--- platformtheme plugin never loads and Qt6 apps fall back to light Breeze.
-hl.env("QT_QPA_PLATFORMTHEME", "qt6ct")
-hl.env("GKT_THEME", "Adwaita:dark")
+-- "kde" = KDEPlasmaPlatformTheme6.so from plasma-integration. It reads
+-- ~/.config/kdeglobals and hands Qt the [Colors:*] palette, so the
+-- Catppuccin scheme there themes every Qt6 app.
+--
+-- Do NOT switch to hyprqt6engine: the packaged 0.1.0 links against
+-- libhyprutils.so.12 and the system has 0.14.2 (soname .13), so its plugin
+-- fails to dlopen and Qt falls back to a light palette — white windows, no
+-- error anywhere. Verify with: ldd .../platformthemes/libhyprqt6engine.so
+--
+-- Do NOT switch to qt6ct either, even though its plugin loads cleanly. It
+-- themes plain Qt6 apps fine (pavucontrol), but KF6 apps override its
+-- palette and stay light — Dolphin rendered #eff0f1 on white under qt6ct
+-- and #1e1e2e under kde. Verify by pixel-sampling the window, not by eye.
+hl.env("QT_QPA_PLATFORMTHEME", "kde")
+-- (a previous "GKT_THEME" typo here set nothing. Left unset on purpose:
+-- forcing GTK_THEME=Adwaita:dark would override gtk-theme-name=Breeze and
+-- fight the Breeze palette that gtk-3.0/colors.css is written against.)
+hl.env("STEAM_FORCE_DESKTOPUI_SCALING", "1.25")
 hl.env("STEAM_FORCE_DESKTOPUI_SCALING", "1.25")
 
 

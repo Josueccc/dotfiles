@@ -11,6 +11,14 @@ swaync/generated-colors.css
 kitty/generated-colors.conf
 alacritty/generated-colors.toml
 
+# matugen-generated GTK palette. It is written to ~/.config/gtk-3.0/colors.css,
+# which is outside the repo, so there is normally nothing to ignore — these entries
+# are defensive, in case the whole gtk/ dir is ever symlinked instead of just gtk.css.
+# The template (matugen/templates/breeze.css) and the consumer (gtk/gtk-3.0/gtk.css)
+# ARE tracked; only the generated output is machine-specific.
+gtk/gtk-3.0/colors.css
+gtk/gtk-4.0/colors.css
+
 # waypaper rewrites config.ini in full on every wallpaper change, so tracking it
 # means a dirty tree after every pick. The settings that matter live in
 # config.ini.template, which install.sh seeds into place. waypaper's own state

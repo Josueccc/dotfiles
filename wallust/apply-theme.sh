@@ -8,7 +8,15 @@
 #                            to re-run — never overwrites real wallust output).
 #
 # Wired up via waypaper's post_command, so every wallpaper change re-themes:
-#   hyprland borders · waybar · rofi · swaync · kitty · alacritty
+#   hyprland borders · waybar · rofi · swaync · kitty · alacritty   (wallust)
+#   GTK3 apps: thunar, blueman, gnome-disks                        (matugen)
+#
+# Two generators on purpose. wallust drives the shell because it is fast and its
+# 16-colour palette suits CSS/rasi/kitty. GTK3 is driven by matugen instead
+# because gtk-theme-name=Breeze uses ~84 differently-named colour variables
+# (theme_base_color_breeze, …) rather than adwaita's accent_color/window_bg_color,
+# so it needs a purpose-written template — see matugen/templates/breeze.css.
+# Qt6 is NOT handled here: it reads kde/kdeglobals via the "kde" platform theme.
 set -u
 
 CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/wallust"
@@ -75,6 +83,26 @@ if [ "${1:-}" = "--seed" ]; then
         '[colors.bright]' \
         'black = "#585b70"' 'red = "#f38ba8"' 'green = "#a6e3a1"' 'yellow = "#f9e2af"' \
         'blue = "#89b4fa"'  'magenta = "#cba6f7"' 'cyan = "#94e2d5"' 'white = "#a6adc8"'
+
+    # GTK3 palette. Static Breeze-Dark stand-in so a fresh install has sane dark
+    # chrome before matugen has ever run. matugen overwrites this on the first
+    # wallpaper change. gtk/gtk-3.0/gtk.css does `@import 'colors.css'`, so this
+    # file is the one GTK3 apps actually read.
+    seed "$HOME/.config/gtk-3.0/colors.css" \
+        '/* Static fallback palette (Catppuccin Mocha as Breeze variables).' \
+        '   Overwritten by matugen. GTK3 reads this via @import in gtk.css. */' \
+        '@define-color theme_base_color_breeze #1e1e2e;' \
+        '@define-color theme_bg_color_breeze   #313244;' \
+        '@define-color theme_fg_color_breeze   #cdd6f4;' \
+        '@define-color theme_text_color_breeze #cdd6f4;' \
+        '@define-color content_view_bg_breeze #1e1e2e;' \
+        '@define-color theme_selected_bg_color_breeze #89b4fa;' \
+        '@define-color theme_selected_fg_color_breeze #1e1e2e;' \
+        '@define-color link_color_breeze #89b4fa;' \
+        '@define-color borders_breeze #45475a;' \
+        '@define-color error_color_breeze #f38ba8;' \
+        '@define-color success_color_breeze #a6e3a1;' \
+        '@define-color warning_color_breeze #f9e2af;'
     exit 0
 fi
 
@@ -96,6 +124,24 @@ fi
 
 log "theming from $wallpaper"
 wallust run "$wallpaper" >> "$LOG" 2>&1 || { log "wallust failed"; exit 1; }
+
+# GTK3 (thunar, blueman, gnome-disks…) is themed by matugen, not wallust.
+# matugen needs --source-color-index 0 here: it runs from waypaper's post_command,
+# with no terminal attached, so it cannot prompt when the image has several
+# candidate source colours and errors out instead. It is run from the matugen/
+# directory because config.toml's input_path is relative to it, and it does
+# expand `~` in output_path. A failure here is non-fatal — the seeded fallback
+# in colors.css keeps GTK readable.
+if command -v matugen >/dev/null 2>&1; then
+    if ( cd "$HOME/.dotfiles/matugen" && matugen image "$wallpaper" \
+             --config ./config.toml --source-color-index 0 ) >> "$LOG" 2>&1; then
+        log "matugen: gtk palette updated"
+    else
+        log "matugen failed, keeping previous gtk palette (see $LOG)"
+    fi
+else
+    log "matugen not installed, skipping gtk palette"
+fi
 
 sleep 0.2  # let wallust finish flushing files
 
