@@ -174,7 +174,8 @@
     },
 
     // ── Battery ────────────────────────────────────────────────────────────
-    // left-click → rofi power-profile picker
+    // left-click → cycle power profile (roadmap 3.2: was a rofi picker, now a
+    // qs ipc call into quickshell; the explicit picker is the SYSTEM card)
     "battery": {
         "states": {
             "good":     80,

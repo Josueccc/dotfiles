@@ -68,7 +68,7 @@ These have no dotfile tracked in this repo — install manually or via package m
 
 ## Authentication & Security
 
-- polkit-gnome (polkit auth popup — autostart in Hyprland config)
+- quickshell (also the polkit auth agent, via `Services.Polkit` — no separate agent package, roadmap 3.2)
 - gnome-keyring (credential + SSH key storage)
 - seahorse (GUI keyring manager)
 - openssh (SSH client + agent)

@@ -557,15 +557,15 @@ popup("archive-dialog", { title = "^(Compress Files|Extract Files|Create Archive
 popup("satty",  { class = "^(satty)$" }, "0.70", "0.75")
 popup("swappy", { class = "^(swappy)$" }, "0.70", "0.75")
 
--- Polkit authentication popups — pinned so they can't end up behind a window
-hl.window_rule({
-    name  = "pin-polkit",
-    match = { class = ".*-authentication-agent-1$" },
-    pin   = true,
-    float = true,
-    center = true,
-    size  = { "(monitor_w*0.40)", "(monitor_h*0.45)" },
-})
+-- The polkit popup rules that used to live here are gone (roadmap 3.2).
+-- They matched class ".*-authentication-agent-1$" — a GTK/Qt *window* from an
+-- external agent — and the agent is now quickshell's own Services.Polkit,
+-- which draws its prompt as a layer surface inside the dashboard overlay, not
+-- as a client window. There is nothing left for the rule to match.
+--
+-- This also means the popup could never appear behind another window, which
+-- is what the rule was for: the prompt is painted on top of everything by
+-- virtue of being a layer surface, and the shell does the dismissing.
 
 -- Picture-in-picture — floated and pinned across workspaces
 hl.window_rule({

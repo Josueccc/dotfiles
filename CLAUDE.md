@@ -470,6 +470,70 @@ Not yet verified: the `blur-quickshell` layer rule — see the OPEN entry in
 RIZZ-ROADMAP.md, where `rofi` fails the same blur test, so it is a pre-existing
 session issue rather than a quickshell one.
 
+## Polkit + power profile in quickshell (roadmap 3.2)
+
+`shell.qml` also owns two things that used to be shell-script hacks, both
+reached over IPC rather than by adding UI to waybar.
+
+**`qs ipc call power cycle`** is what the waybar battery left-click runs, via
+`waybar/scripts/power-profile.sh`. That script used to be a rofi dmenu over
+`powerprofilesctl`; it is now a one-line IPC forward, so the profile state lives
+in exactly one place. The target is named `power`, **not** `dashboard` — a
+`dashboard toggle` would slam the full-screen overlay open on every battery
+click. The explicit picker is the SYSTEM card's segmented row; the daemon
+underneath is the same one `powerprofilesctl` talks to, so nothing about the
+behaviour changed except that a click no longer spawns rofi.
+
+**`Services.Polkit` is a real authentication agent, and this machine had none.**
+`polkit-gnome` was in `packages.sh` and is now removed, but it was never
+actually autostarted — so before this, `polkitd` was running with no agent at
+all and auth requests had nothing to draw a dialog with. That is why deleting
+the `pin-polkit` window rule from `hyprland.lua` is safe: the rule matched
+`.*-authentication-agent-1$`, and with the agent inside quickshell there is no
+such client window to match. The prompt is a layer surface, so it cannot end up
+behind a window, which is what the rule existed to prevent.
+
+**The prompt is gated on the flow, not on the overlay being open.** The root
+`PanelWindow` is `visible: open || polkit.flow !== null`. An auth request comes
+from some other program at an arbitrary moment, so tying the prompt to `open`
+would make it invisible exactly when it is needed. For the same reason the
+click-to-dismiss `MouseArea` is `enabled: root.open` — otherwise a click on the
+prompt falls through to a dashboard the user cannot see.
+
+Three traps, all of which present as *facts about the machine* and are not:
+
+- **`PolkitAgent` is an element, not a singleton.** `PolkitAgent.isRegistered`
+  is `undefined`, not `false` — the bare name is the type. Write
+  `PolkitAgent { id: polkit }`. Same shape as the `palette` id trap above.
+- **`isRegistered` and `hasPerformanceProfile` are both false at startup and
+  true a few hundred ms later**, because both are filled by an async D-Bus
+  reply. Sampled at 300–500ms intervals. Never gate on `isRegistered` — an auth
+  request landing in that window would be dropped, which is the one failure the
+  agent exists to prevent. Gate on `flow`. And never snapshot
+  `hasPerformanceProfile` at startup: read once it says "this machine has no
+  Performance profile", which is wrong here. Bind to it and the row gains the
+  third segment when the answer lands.
+- **`Identity` is absent from the type index but its properties work.**
+  `flow.identities` is `QList<Identity*>` and no
+  `Quickshell.Services.Polkit/Identity` is exported, so the index says the
+  properties are unreachable. Probed live against a real `pkexec`:
+  `identities[0].displayName` → `"josue"`, `.id` → `1000`. Check at runtime
+  before concluding something is impossible.
+
+Also: polkit's `iconName` is empty for `org.freedesktop.policykit.exec`, so an
+`Image` bound to it renders nothing; and `holds.length > 1 ? … : holds[0].x`
+still indexes at length 0 and throws, so every indexing path must be
+unreachable when the list is empty.
+
+Verified live: request → prompt over a closed overlay → real key events into
+the password field (`echoMode: Password`, 7 dots for "wrongpw") → Enter
+submits → polkit's `supplementaryMessage` renders (it rate-limited to
+"(10 minutes left to unlock)") → Escape cancels and `pkexec` exits. The
+supplementary line is coloured by polkit's own `supplementaryIsError` flag, and
+that rate-limit notice arrives with the flag **false**, so it shows as info,
+not as an error. Styling it red by guessing would be wrong. Not verified: a
+*successful* authentication, which needs a real password.
+
 ## Firefox theming (wallust → Design System tokens)
 
 Firefox 156 follows the wallpaper. `wallust/templates/colors-firefox.css` writes

@@ -5,6 +5,15 @@
 // "quickshell duplicates waybar" note was wrong, and quickshell/README.md for
 // the traps this file deliberately works around.
 //
+// Roadmap 3.2 added two more things to the same file, both of which replace a
+// shell-script hack with a real API:
+//   · Services.UPower  — the power-profile row, which waybar's battery
+//     left-click used to drive through a rofi picker (power-profile.sh).
+//   · Services.Polkit — a real authentication agent. This machine previously had
+//     NO polkit agent running at all (polkit-gnome is installed but was never
+//     autostarted), so auth requests had nothing to show. See "Deliberately not
+//     here" in the README for why that makes deleting pin-polkit safe.
+//
         // editing this file needs a manual `quickshell` restart (no -c: this is the
         // 'default' config, and -c takes a config NAME, not a path) rather than hot
         // reload, which is the same trade this repo makes everywhere else.
@@ -20,6 +29,8 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Services.Mpris
+import Quickshell.Services.Polkit
+import Quickshell.Services.UPower
 import Quickshell.Widgets
 
 PanelWindow {
@@ -50,7 +61,14 @@ PanelWindow {
     // quiet version of "ok is not a result": `qs ipc call dashboard open`
     // returns success, the function runs, and there is no overlay at all,
     // because nothing ever connected the state to the surface.
-    visible: open
+    //
+    // OR the polkit prompt being live. Those are independent: an auth request
+    // arrives from another program at an arbitrary moment, and tying it to
+    // `open` would mean a polkit prompt is invisible unless the user happened
+    // to have the dashboard open — which is the one situation where they are
+    // guaranteed not to. So the surface is up when EITHER wants it, and the
+    // two children below gate themselves on their own state.
+    visible: open || polkit.flow !== null
 
     // ── State ────────────────────────────────────────────────────────────────
     property bool open: false
@@ -217,6 +235,96 @@ PanelWindow {
         root.close();
     }
 
+    // ── Power profile (roadmap 3.2) ──────────────────────────────────────────
+    // Services.UPower, which is power-profiles-daemon over D-Bus. This replaces
+    // waybar/scripts/power-profile.sh, which shelled out to `powerprofilesctl`
+    // behind a rofi dmenu. Same daemon either way, so this is not a capability
+    // change — it is a rofi menu that follows the wallpaper like everything else
+    // does, and one less process on the click path.
+    readonly property var pp: PowerProfiles
+
+    // PowerProfile is a 3-value enum: 0 = PowerSaver, 1 = Balanced,
+    // 2 = Performance. There is no enum-value lookup exposed to QML (the
+    // `toString` on the PowerProfile type is not reachable from the singleton —
+    // PowerProfiles.toString() is the QObject one, which prints the object
+    // pointer), so the names are spelled out here.
+    //
+    // `hasPerformanceProfile` is the important one, and it is a TRAP: it reads
+    // false for the first few hundred milliseconds and then turns true, because
+    // it is filled in by an async D-Bus reply. Verified by sampling it every
+    // 300ms — false on tick 1, true from tick 2 on. It is also genuinely false
+    // on hardware with no intel_pstate/amd_pstate, and setting Performance
+    // there does not fail quietly: it logs "Cannot request performance profile
+    // as it is not present for this device" and leaves the profile unchanged.
+    //
+    // So this cannot be read once at startup, and offering a button that cannot
+    // work is worse than not offering it. Because it is a plain binding on a
+    // real property, the row simply gains the Performance segment once the
+    // answer arrives — no timer, no re-check.
+    readonly property var profileOptions: {
+        const opts = [
+            { value: 0, label: "Saver",   glyph: "" },
+            { value: 1, label: "Balanced", glyph: "" }
+        ];
+        if (pp.hasPerformanceProfile)
+            opts.push({ value: 2, label: "Performance", glyph: "" });
+        return opts;
+    }
+
+    function setPowerProfile(value) {
+        // Guard rather than trust: the picker is the only caller and it only
+        // offers what profileOptions contains, but an IPC call can set anything.
+        if (pp.profile === value) return;
+        pp.profile = value;
+    }
+
+    // Cycle, for the waybar battery click. Wraps over the *available* profiles
+    // only, so on a machine with no Performance profile the cycle is
+    // Balanced -> Saver -> Balanced instead of silently sticking on Balanced
+    // when it lands on a value the hardware will not take.
+    function cyclePowerProfile() {
+        if (profileOptions.length === 0) return;
+        const i = profileOptions.findIndex(o => o.value === pp.profile);
+        // findIndex is -1 for an unknown current value (e.g. switched to
+        // another daemon); start at 0 rather than indexing -1, which would
+        // read undefined and set NaN.
+        const next = profileOptions[(i + 1 + profileOptions.length) % profileOptions.length];
+        setPowerProfile(next.value);
+    }
+
+    // ── Polkit (roadmap 3.2) ─────────────────────────────────────────────────
+    // A real authentication agent. PolkitAgent is a QML ELEMENT, not a
+    // singleton — writing `PolkitAgent.isRegistered` gives undefined, because
+    // the bare name is the type, not an instance. This is the same shape of
+    // trap as the `palette` id below: the object resolves, its properties do
+    // not, and it reads like broken data rather than a name collision.
+    PolkitAgent {
+        id: polkit
+
+        // isRegistered is FALSE in the first moments after load and true a
+        // beat later (verified: false at Component.onCompleted, true by the
+        // first 500ms tick). So this must not gate the prompt's visibility —
+        // an auth request that lands in that window would be dropped, and
+        // dropping it is exactly the failure the agent exists to prevent.
+        onFlowChanged: {
+            if (flow === null) return;
+            // Park the query. The prompt has its own TextInput, and leaving a
+            // stale password in it means the next request is pre-filled with
+            // the last one typed.
+            polkitPass.text = "";
+            polkitPass.forceActiveFocus();
+        }
+    }
+
+    function polkitSubmit() {
+        if (polkit.flow === null) return;
+        polkit.flow.submit(polkitPass.text);
+    }
+    function polkitCancel() {
+        if (polkit.flow === null) return;
+        polkit.flow.cancelAuthenticationRequest();
+    }
+
     // ── Calendar ─────────────────────────────────────────────────────────────
     // Monday-first, matching the rest of the continent.
     readonly property var monthCells: {
@@ -280,14 +388,33 @@ PanelWindow {
         function close(): void { root.close(); }
     }
 
+    // Separate target, not more functions on `dashboard`. The waybar battery
+    // click needs the profile to change WITHOUT the overlay appearing — a
+    // `dashboard toggle` there would slam the full-screen overlay open on
+    // every battery click, which is the opposite of a cycle. Same reason
+    // `qs ipc call` returns nothing useful: what matters is that the call
+    // fires, and the profile row re-renders off the profileChanged signal.
+    IpcHandler {
+        target: "power"
+        function cycle(): void { root.cyclePowerProfile(); }
+        function set(v: int): void { root.setPowerProfile(v); }
+    }
+
     // ── Painting ─────────────────────────────────────────────────────────────
     MouseArea {
         anchors.fill: parent
+        // Gated on `open`, not just present. The window is mapped whenever a
+        // polkit flow is live, and without this a click anywhere on the prompt
+        // would fall through to here and dismiss the dashboard — which the
+        // user cannot see — leaving a polkit prompt on screen that eats their
+        // clicks and looks frozen.
+        enabled: root.open
         onClicked: root.close()
     }
 
     Rectangle {
         id: card
+        visible: root.open
         anchors.centerIn: parent
         width: 1040
         height: 600
@@ -753,7 +880,365 @@ PanelWindow {
                                     font.pixelSize: 12
                                 }
                             }
+
+                            // Power profile (roadmap 3.2). Sits under Load
+                            // because it is the only row here that is a
+                            // control rather than a reading.
+                            //
+                            // Label above, cells below, rather than sharing a
+                            // line: with Performance available the three
+                            // labels need ~230px and the column is 258, so
+                            // "Power" and the control on one row is an
+                            // overflow that only appears on machines that
+                            // HAVE the performance profile — i.e. it would
+                            // look fine on this one and break on a laptop.
+                            Item {
+                                id: powerRow
+                                width: parent.width
+                                height: 48
+
+                                Text {
+                                    id: powerTitle
+                                    anchors.left: parent.left
+                                    anchors.top: parent.top
+                                    text: "Power"
+                                    color: pal.adapter.subtext0
+                                    font.family: root.nf
+                                    font.pixelSize: 12
+                                }
+
+                                // A hold pins the profile, and a hold is
+                                // exactly the case where a control that lies
+                                // is worst: the profile is right, the app that
+                                // set it is not us, and the row would claim
+                                // otherwise. Say so instead.
+                                Text {
+                                    anchors.left: powerTitle.right
+                                    anchors.leftMargin: 8
+                                    anchors.baseline: powerTitle.baseline
+                                    visible: root.pp.holds.length > 0
+                                    // Indexed, not mapped-and-joined: holds is
+                                    // empty on this machine, so every path that
+                                    // reads holds[0] has to be unreachable when
+                                    // it is empty. A ternary on length>1 alone
+                                    // still falls through to holds[0] at
+                                    // length 0 and throws
+                                    // "Cannot read property 'applicationId' of
+                                    // undefined" — which is what it did.
+                                    text: {
+                                        const h = root.pp.holds;
+                                        if (h.length === 0) return "";
+                                        if (h.length > 1) return h.length + " apps";
+                                        return "held by "
+                                            + (h[0].applicationId || "another app");
+                                    }
+                                    color: pal.adapter.yellow
+                                    font.family: root.nf
+                                    font.pixelSize: 10
+                                    elide: Text.ElideRight
+                                    // Bound so a long applicationId cannot push
+                                    // the row wider than the card.
+                                    width: Math.min(implicitWidth,
+                                                    powerRow.width - powerTitle.width - 8)
+                                }
+
+                                // Segmented control, below the label. Cells are
+                                // an equal split of the row width rather than
+                                // sized to their labels, so the control is the
+                                // same width with two profiles or three.
+                                Row {
+                                    id: powerSegs
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    anchors.bottom: parent.bottom
+                                    height: 24
+                                    spacing: 4
+
+                                    Repeater {
+                                        model: root.profileOptions
+                                        Rectangle {
+                                            required property var modelData
+                                            readonly property bool active:
+                                                root.pp.profile === modelData.value
+
+                                            // Equal split, minus the gaps. Not
+                                            // implicitWidth: a three-profile
+                                            // row is wider than the card.
+                                            width: (powerSegs.width - powerSegs.spacing
+                                                    * (root.profileOptions.length - 1))
+                                                    / root.profileOptions.length
+                                            height: powerSegs.height
+                                            radius: 6
+                                            color: active ? pal.adapter.blue
+                                                            : pal.adapter.surface0
+
+                                            Behavior on color {
+                                                ColorAnimation { duration: 160 }
+                                            }
+
+                                            Text {
+                                                anchors.centerIn: parent
+                                                width: parent.width
+                                                text: modelData.label
+                                                horizontalAlignment: Text.AlignHCenter
+                                                elide: Text.ElideRight
+                                                // Accent-on-accent otherwise, the
+                                                // same flip the today-pill needs.
+                                                color: parent.active ? pal.adapter.crust
+                                                                    : pal.adapter.subtext0
+                                                font.family: root.nf
+                                                font.pixelSize: 11
+                                                font.weight: parent.active ? Font.DemiBold
+                                                                            : Font.Normal
+                                            }
+
+                                            MouseArea {
+                                                anchors.fill: parent
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: root.setPowerProfile(modelData.value)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Polkit prompt ────────────────────────────────────────────────────────
+    // Sibling of `card`, declared after it, so it paints on top. It is visible
+    // purely off the flow, NOT off `root.open`: a polkit request comes from
+    // some other program and has to be answerable while the dashboard is
+    // closed. Binding it to `open` would mean the prompt is invisible exactly
+    // when it is needed.
+    Rectangle {
+        id: pkCard
+        visible: polkit.flow !== null
+        anchors.centerIn: parent
+        width: 420
+        height: pkColumn.implicitHeight + 44
+        radius: 16
+        color: Qt.alpha(pal.adapter.base, 0.97)
+        border.width: 1
+        border.color: pal.adapter.mauve
+
+        // Swallow clicks. The dismiss MouseArea behind is disabled while a
+        // flow is live, but only for THIS window's own handler — a click here
+        // must not reach anything behind it either.
+        MouseArea { anchors.fill: parent }
+
+        Column {
+            id: pkColumn
+            anchors.centerIn: parent
+            width: parent.width - 44
+            spacing: 12
+
+            Row {
+                width: parent.width
+                spacing: 10
+
+                // actionId, not a fixed glyph. Polkit's iconName is empty for
+                // most actions (verified: org.freedesktop.policykit.exec sends
+                // ""), so an Image bound to it would render nothing at all —
+                // the same "defined but its properties are missing" shape as
+                // the palette id trap.
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "󰌆"
+                    color: pal.adapter.mauve
+                    font.family: root.nf
+                    font.pixelSize: 20
+                }
+
+                Column {
+                    width: parent.width - 30
+                    spacing: 2
+
+                    Text {
+                        width: parent.width
+                        text: "Authentication required"
+                        color: pal.adapter.text
+                        font.family: root.nf
+                        font.pixelSize: 15
+                        font.weight: Font.DemiBold
+                        elide: Text.ElideRight
+                    }
+                    Text {
+                        width: parent.width
+                        // Polkit supplies a human sentence here, e.g.
+                        // "Authentication is needed to run `/usr/bin/true' as
+                        // the super user". It is the reason the request exists,
+                        // so it is the prompt's headline, not a detail.
+                        text: polkit.flow !== null ? polkit.flow.message : ""
+                        color: pal.adapter.subtext0
+                        font.family: root.nf
+                        font.pixelSize: 12
+                        wrapMode: Text.WordWrap
+                    }
+                }
+            }
+
+            // Identity picker, only when there is a choice to make. With one
+            // identity (the common case, and this machine's case) polkit has
+            // already selected it, so a picker here is a control with nothing
+            // to do.
+            Repeater {
+                model: polkit.flow !== null && polkit.flow.identities.length > 1
+                    ? polkit.flow.identities : []
+                Rectangle {
+                    required property var modelData
+                    readonly property bool active:
+                        polkit.flow !== null
+                        && polkit.flow.selectedIdentity === modelData
+
+                    width: pkColumn.width
+                    height: 30
+                    radius: 6
+                    color: active ? pal.adapter.surface1 : "transparent"
+                    border.width: 1
+                    border.color: active ? pal.adapter.mauve : pal.adapter.surface0
+
+                    Text {
+                        anchors.left: parent.left
+                        anchors.leftMargin: 10
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: modelData.displayName
+                        color: pal.adapter.text
+                        font.family: root.nf
+                        font.pixelSize: 12
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: polkit.flow.selectedIdentity = modelData
+                    }
+                }
+            }
+
+            // Password field. isResponseRequired is false when polkit is only
+            // asking which identity to use, and showing an empty password box
+            // then implies a credential is wanted when none is.
+            Column {
+                width: parent.width
+                spacing: 6
+                visible: polkit.flow !== null && polkit.flow.isResponseRequired
+
+                Text {
+                    text: polkit.flow !== null && polkit.flow.inputPrompt !== ""
+                        ? polkit.flow.inputPrompt : "Password"
+                    color: pal.adapter.subtext0
+                    font.family: root.nf
+                    font.pixelSize: 11
+                }
+
+                Rectangle {
+                    width: parent.width
+                    height: 38
+                    radius: 8
+                    color: pal.adapter.mantle
+                    border.width: 1
+                    // Crust on focus, so the focused field is the one with a
+                    // visible ring without needing a focus-scope.
+                    border.color: polkitPass.activeFocus ? pal.adapter.mauve
+                                                          : pal.adapter.surface1
+
+                    TextInput {
+                        id: polkitPass
+                        anchors.fill: parent
+                        anchors.leftMargin: 12
+                        anchors.rightMargin: 12
+                        verticalAlignment: TextInput.AlignVCenter
+                        color: pal.adapter.text
+                        font.family: root.nf
+                        font.pixelSize: 14
+                        selectionColor: pal.adapter.mauve
+                        selectedTextColor: pal.adapter.crust
+                        echoMode: TextInput.Password
+                        clip: true
+
+                        // Same rule as the launcher filter: handle the keys you
+                        // want, leave the rest UNACCEPTED so the field does its
+                        // own text editing. A catch-all else that assigns
+                        // event.text destroys the input — see the README.
+                        Keys.onPressed: event => {
+                            if (event.key === Qt.Key_Escape) {
+                                root.polkitCancel();
+                                event.accepted = true;
+                            } else if (event.key === Qt.Key_Return
+                                    || event.key === Qt.Key_Enter) {
+                                root.polkitSubmit();
+                                event.accepted = true;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Polkit's own supplementary text, and its own error flag. This is
+            // where "Authentication failed" lands, so it must not be styled as
+            // ordinary help text or a failed login looks like a success.
+            Text {
+                width: parent.width
+                visible: polkit.flow !== null
+                    && polkit.flow.supplementaryMessage !== ""
+                text: polkit.flow !== null ? polkit.flow.supplementaryMessage : ""
+                color: polkit.flow !== null && polkit.flow.supplementaryIsError
+                    ? pal.adapter.red : pal.adapter.subtext0
+                font.family: root.nf
+                font.pixelSize: 11
+                wrapMode: Text.WordWrap
+            }
+
+            Row {
+                anchors.right: parent.right
+                spacing: 8
+
+                Rectangle {
+                    width: pkCancel.implicitWidth + 26
+                    height: 32
+                    radius: 8
+                    color: pal.adapter.surface0
+                    Text {
+                        id: pkCancel
+                        anchors.centerIn: parent
+                        text: "Cancel"
+                        color: pal.adapter.subtext0
+                        font.family: root.nf
+                        font.pixelSize: 13
+                    }
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.polkitCancel()
+                    }
+                }
+
+                Rectangle {
+                    width: pkOk.implicitWidth + 26
+                    height: 32
+                    radius: 8
+                    color: polkit.flow !== null && polkit.flow.isResponseRequired
+                        ? pal.adapter.mauve : pal.adapter.surface1
+                    Text {
+                        id: pkOk
+                        anchors.centerIn: parent
+                        text: "Authenticate"
+                        // On a mauve button the label has to flip, same as
+                        // the power segments and the today pill.
+                        color: polkit.flow !== null && polkit.flow.isResponseRequired
+                            ? pal.adapter.crust : pal.adapter.overlay0
+                        font.family: root.nf
+                        font.pixelSize: 13
+                        font.weight: Font.DemiBold
+                    }
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.polkitSubmit()
                     }
                 }
             }

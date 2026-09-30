@@ -157,7 +157,12 @@ arch)
         plasma-integration
         matugen
         # auth & keyring
-        polkit-gnome gnome-keyring seahorse openssh
+        # No polkit agent package: quickshell's Services.Polkit IS the agent
+        # (roadmap 3.2), and it draws a themed prompt instead of a GTK one.
+        # polkitd itself still arrives — `quickshell` and
+        # `power-profiles-daemon` are both in Required By for polkit, and both
+        # are listed here.
+        gnome-keyring seahorse openssh
         # audio
         pipewire wireplumber pamixer playerctl pavucontrol cava
         # network
@@ -225,8 +230,8 @@ fedora)
         xdg-desktop-portal-hyprland xdg-desktop-portal-gtk
         # GTK/Qt theming
         nwg-look kvantum qt5ct qt6ct
-        # auth & keyring
-        polkit-gnome gnome-keyring seahorse openssh
+        # auth & keyring  (no polkit agent: quickshell's Services.Polkit is it)
+        gnome-keyring seahorse openssh
         # audio
         pipewire wireplumber pamixer playerctl pavucontrol cava
         # network  (Fedora uses uppercase NetworkManager package names)

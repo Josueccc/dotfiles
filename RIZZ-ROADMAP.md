@@ -145,11 +145,54 @@ two idle file managers are nearly indistinguishable.
   `blur-quickshell` layer rule, and `Super+D` itself, which needs a real
   keypress.
 
-- [ ] **3.2 Absorb what quickshell does natively better** *(scope B, not
-      started)* — `Services.Polkit` as a real agent, which would delete the
-      pinned-polkit popup rules from 1.5, and `Services.UPower`, which would
-      replace `waybar/scripts/power-profile.sh`'s rofi picker. Both replace
-      shell-script hacks with real APIs. Low risk, no waybar migration.
+- [x] **3.2 Absorb what quickshell does natively better** — done, both halves.
+      `Services.Polkit` is a real authentication agent and `Services.UPower`
+      drives the power profile, both inside `shell.qml`.
+
+  **The premise about the agent was wrong, in the machine's favour.** The entry
+  assumed swapping `polkit-gnome` for a quickshell agent was a lateral move.
+  It was not: `polkit-gnome` was in `packages.sh` but **was never autostarted**
+  (`install.md` claimed it was, and nothing in `hyprland.lua` started it), so
+  `polkitd` was running with no agent at all and every auth request had nothing
+  to draw a dialog with. The package is now removed from `packages.sh` and
+  something actually answers.
+
+  **`pin-polkit` deleted, and the reason is structural rather than tidy.** The
+  rule matched `.*-authentication-agent-1$` — a GTK/Qt *window* belonging to an
+  external agent. The agent is now quickshell drawing a **layer surface**, so
+  there is no client window of that shape to match. The rule's actual purpose
+  (a prompt must not end up behind a window) is now satisfied by construction:
+  a layer surface paints above everything, and the shell does the dismissing.
+
+  **Power profile: cycle on click, explicit row in the overlay.** The battery
+  left-click runs `qs ipc call power cycle` through the (now one-line)
+  `power-profile.sh`; the SYSTEM card carries a segmented row. The IPC target
+  is `power`, **not** `dashboard` — a `dashboard toggle` on a battery click
+  would open the full-screen overlay every time. Same daemon underneath
+  (`power-profiles-daemon`) as the `powerprofilesctl` call it replaces, so this
+  is a rofi menu that follows the wallpaper, not a capability change.
+
+  **Two API traps here both present as facts about the machine.**
+  `isRegistered` and `hasPerformanceProfile` are *both* false at startup and
+  true a few hundred ms later, being filled by an async D-Bus reply. Read once,
+  the second one says this machine has no Performance profile — it does. Never
+  gate on `isRegistered`: an auth request in that window would be dropped, the
+  one failure the agent exists to prevent. Gate on `flow`. Separately,
+  `Identity` is missing from the type index but `identities[0].displayName`
+  works fine at runtime (`"josue"`), verified against a real `pkexec` — the
+  index is generated from exported metatypes and this one is inherited.
+
+  Verified live: cycle walking all three profiles against `powerprofilesctl get`;
+  the segmented row rendering with the active segment filled and Performance
+  appearing on its own once the race settles; and the **whole polkit path** —
+  a real `pkexec` request producing the prompt *over a closed overlay* (it is
+  gated on the flow, not on `open`, because a request arrives at an arbitrary
+  moment), real key events typing into the password field, Enter submitting,
+  polkit's `supplementaryMessage` rendering (it rate-limited to "(10 minutes
+  left to unlock)"), and Escape cancelling with `pkexec` exiting. Not verified:
+  a *successful* auth, which needs a real password; the identity picker, gated
+  on `identities.length > 1` and this machine has one; and the "held by …"
+  line, gated on a non-empty `holds` that is empty here.
 - [ ] **3.3 Lock-screen now-playing** *(scope B+, not started)* —
       `Wayland.WlSessionLock` would deliver the missing half of 5.3. Note this
       means replacing hyprlock, which Phase 1.2 tuned by hand.
