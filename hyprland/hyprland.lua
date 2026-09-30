@@ -29,7 +29,9 @@ hl.monitor({
     -- Hyprland invents CVT timings, nvidia rejects them (EINVAL) and aquamarine
     -- retries forever on a black screen — 6,595 failed commits in one test.
     -- 144 is advertised too but the HDMI link cannot hold it (580 MHz: flip
-    -- never completes, monitor drops and reconnects); 120 (498 MHz) holds.
+    -- never completes, monitor drops and reconnects); 120 (498 MHz) is
+    -- marginal — the monitor blinks on its own side with this cable — so the
+    -- OSD is set to 60. No custom modelines either: nvidia rejects them all.
     mode     = "preferred",
     position = "0x0",
     scale    = "1.25",
