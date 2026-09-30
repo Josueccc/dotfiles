@@ -22,7 +22,15 @@ hl.monitor({
 -- is what "on the left" has to mean once the layout can change under you.
 hl.monitor({
     output   = "HDMI-A-1",
-    mode     = "preferred",   -- 2560x1440@59.95
+    -- 2560x1440@120, but only because the MONITOR advertises it: the Samsung's
+    -- own OSD "Refresh Rate" setting (60/120/144) rewrites its EDID, and a
+    -- settings reset puts it back to 60. `preferred` follows whatever it
+    -- offers. Never pin "2560x1440@120": when the mode is not in the EDID,
+    -- Hyprland invents CVT timings, nvidia rejects them (EINVAL) and aquamarine
+    -- retries forever on a black screen — 6,595 failed commits in one test.
+    -- 144 is advertised too but the HDMI link cannot hold it (580 MHz: flip
+    -- never completes, monitor drops and reconnects); 120 (498 MHz) holds.
+    mode     = "preferred",
     position = "0x0",
     scale    = "1.25",
 })
