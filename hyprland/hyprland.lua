@@ -6,12 +6,89 @@
 ---- MONITORS ----
 ------------------
 
+-- Fallback for any output that is not one of the two below (a projector, a
+-- second external): preferred mode, Hyprland-derived position, 1.25 scale.
+-- It is listed FIRST on purpose — the more specific rules that follow override
+-- it, and the order is what makes that true.
 hl.monitor({
     output   = "",
     mode     = "preferred",
     position = "auto",
     scale    = "1.25",
 })
+
+-- The Samsung Odyssey G5 is the main screen while it is plugged in. Pinned to
+-- 0x0 so it is always the left-hand output no matter what else shows up, which
+-- is what "on the left" has to mean once the layout can change under you.
+hl.monitor({
+    output   = "HDMI-A-1",
+    mode     = "preferred",   -- 2560x1440@59.95
+    position = "0x0",
+    scale    = "1.25",
+})
+
+-- The laptop panel gets an EXPLICIT position, never `auto`: 2048x0 to the right
+-- of the Samsung (2560 at 1.25 scale) while it is plugged in, 0x0 when it is
+-- the only screen. place_panel() below switches between the two on every
+-- hotplug. Starting value: whatever the live output set says right now (on
+-- a reload), or the undocked 0x0 at first start, which place_panel fixes up
+-- from `hyprland.start` once the outputs exist.
+local function panel_position()
+    return hl.get_monitor("HDMI-A-1") and "2048x0" or "0x0"
+end
+
+hl.monitor({
+    output   = "eDP-1",
+    mode     = "preferred",   -- 1920x1080@120
+    position = panel_position(),
+    scale    = "1.25",
+})
+
+-- "Main screen" also means where focus lands. The active workspace follows the
+-- focused monitor, so without this a boot with both outputs up drops you on the
+-- laptop panel and the first window you open is on the wrong screen.
+--
+-- The `get_monitor` guard is the honest part: focusing an output that is not
+-- there logs "monitor not found" and leaves focus untouched, which is the
+-- behaviour we want on unplug anyway, but a warning on every lid open is noise.
+-- With the cable out this returns without dispatching and focus stays on eDP-1,
+-- which is then the only monitor there is.
+local function focus_primary()
+    if hl.get_monitor("HDMI-A-1") then
+        hl.dispatch(hl.dsp.focus({ monitor = "HDMI-A-1" }))
+    end
+end
+
+-- Why not `auto`: it moves the panel, but NOT the layer surfaces on it.
+-- Unplugging the Samsung put eDP-1 at 0x0 while waybar and the awww wallpaper
+-- stayed at x=2048 (`hyprctl layers`), i.e. off-screen: a bare panel, no bar,
+-- no wallpaper, both processes alive. Replug and resume did the reverse (panel
+-- at 2048, its layers at 0). Every move `auto` makes on its own is one of
+-- those. A rule whose *value* changes forces a real reconfigure, and that DOES
+-- re-arrange the layers, while re-applying an identical rule is a no-op. So the
+-- panel only ever moves because place_panel changed its rule.
+--
+-- Deferred because the handler can run while the output set is still
+-- settling. `type` is REQUIRED on hl.timer: without it the call returns nil
+-- and the callback never fires, with no error.
+local function place_panel()
+    hl.timer(function()
+        local docked = hl.get_monitor("HDMI-A-1") ~= nil
+        hl.monitor({
+            output   = "eDP-1",
+            mode     = "preferred",
+            position = docked and "2048x0" or "0x0",
+            scale    = "1.25",
+        })
+        if docked then focus_primary() end
+    end, { timeout = 500, type = "oneshot" })
+end
+
+-- The other half of the startup call, which lives in the AUTOSTART block below.
+-- Hotplug does not re-fire `hyprland.start`, so replugging the cable in needs
+-- this: it hands focus back to the Samsung without waiting for a reload.
+hl.on("monitor.added", function() focus_primary(); place_panel() end)
+hl.on("monitor.removed", function() place_panel() end)
 
 
 ---------------------
@@ -50,6 +127,10 @@ hl.on("hyprland.start", function()
     -- quickshell; the palette FileView in shell.qml picks the new colours up
     -- on its own, which is the whole point of it.
     hl.exec_cmd("pkill -x quickshell 2>/dev/null; quickshell")
+    -- Put the panel beside the Samsung (or at 0x0 alone) now that the outputs
+    -- exist, and start on the main screen rather than whatever Hyprland
+    -- happened to pick. See the MONITORS section.
+    place_panel()
 end)
 
 
@@ -329,8 +410,21 @@ hl.bind(mainMod .. " + W", hl.dsp.exec_cmd("~/.config/waybar/scripts/wallpaper-p
 -- nothing.
 hl.bind(mainMod .. " + D", hl.dsp.exec_cmd("qs ipc call dashboard toggle"))
 
--- Lock screen
-hl.bind(mainMod .. " + CTRL + L", hl.dsp.exec_cmd("hyprlock"))
+-- Lock screen (roadmap 3.3). This is the quickshell lock — a real Wayland
+-- session lock with a PAM prompt and now-playing — not hyprlock.
+--
+-- The script, not a bare `quickshell -p ...`, because it has to clear a stale
+-- lock process first: a second WlSessionLock cannot lock while one is already
+-- engaged, so a leftover process would make this bind silently do nothing.
+hl.bind(mainMod .. " + CTRL + L", hl.dsp.exec_cmd("~/.config/hypr/scripts/lock.sh"))
+
+-- hyprlock is kept, on its own bind, as the fallback. It is worth being precise
+-- about what that buys: ext-session-lock-v1 holds the lock and paints a solid
+-- colour if the lock surface dies without an unlock, so hyprlock cannot rescue
+-- a quickshell lock that is currently holding the session. It covers the other
+-- case — the quickshell lock's UI is broken or never engaged — and it costs
+-- nothing to keep, since hyprlock.conf is already tuned (roadmap 1.2).
+hl.bind(mainMod .. " + CTRL + SHIFT + L", hl.dsp.exec_cmd("hyprlock"))
 
 -- Night light (manual override on top of the hyprsunset time profiles)
 hl.bind(mainMod .. " + SHIFT + M", hl.dsp.exec_cmd("~/.config/hypr/scripts/nightlight.sh"))
@@ -365,6 +459,50 @@ hl.bind(mainMod .. " + SHIFT + V", hl.dsp.exec_cmd("kitty -e nvim"))
 --------------------------------
 ---- WINDOWS AND WORKSPACES ----
 --------------------------------
+
+-- Workspaces 1-5 live on the Samsung, 6-10 on the laptop panel. Both ranges are
+-- needed: an unassigned workspace does not default to "the other monitor", it
+-- goes to whichever monitor has focus, and focus starts on the Samsung (see
+-- focus_primary in the MONITORS section). With only the 1-5 half written, all
+-- ten workspaces pile up on the external display.
+--
+-- One rule per workspace, never a range — this is the part that is easy to get
+-- wrong and it fails *silently*, with no config error and no warning. Both of
+-- these parse cleanly and do nothing:
+--
+--   hl.workspace_rule({ workspace = "1-5",  monitor = "HDMI-A-1" })
+--   hl.workspace_rule({ workspace = "r[1-5]", monitor = "HDMI-A-1" })
+--
+-- Verified by creating fresh workspaces and reading back `hyprctl workspaces`:
+-- with a range bound to HDMI-A-1, a brand new ws 25 still came up on eDP-1, and
+-- so did one under `r[60-69]`. The wiki says why — workspace selectors "can
+-- only match existing workspaces", so a range is evaluated against the
+-- workspaces that already exist and never binds a workspace being created. A bare
+-- numeric id is the only form that binds at creation: ws 40 with a "40" rule
+-- came up on HDMI-A-1 and ws 41 on eDP-1, both first time.
+--
+-- Corollary worth keeping: the binding is applied when a workspace is CREATED
+-- and is never revisited. A workspace that already exists on the wrong monitor
+-- stays there, not on reload and not when a window is moved onto it, so this
+-- config only binds workspaces that do not exist yet. There is no destroy
+-- dispatcher in this build to clear the old ones; a fresh login is the fix.
+--
+-- The `default` flag is the startup half: it is what decides which workspace each
+-- monitor comes up on, which is ws 1 on the Samsung and ws 6 on the panel.
+-- `default = (i == first)` leaves the field off entirely for the rest, and
+-- `nil` in a Lua table literal is just an absent key, not an error.
+local function assign_workspaces(first, last, monitor)
+    for i = first, last do
+        hl.workspace_rule({
+            workspace = tostring(i),
+            monitor   = monitor,
+            default   = (i == first) or nil,
+        })
+    end
+end
+
+assign_workspaces(1,  5,  "HDMI-A-1")
+assign_workspaces(6, 10, "eDP-1")
 
 hl.window_rule({
     name           = "suppress-maximize-events",

@@ -168,6 +168,17 @@ if [ "$MODE" = "desktop" ]; then
     symlink "$DOTFILES/hyprland/scripts/nightlight.sh" "$HOME/.config/hypr/scripts/nightlight.sh"
     symlink "$DOTFILES/hyprland/scripts/dim-ramp.sh"   "$HOME/.config/hypr/scripts/dim-ramp.sh"
     symlink "$DOTFILES/hyprland/scripts/toggle-kb-layout.sh" "$HOME/.config/hypr/scripts/toggle-kb-layout.sh"
+    # Post-suspend screen wake. See hypridle.conf's after_sleep_cmd: a bare
+    # `hyprctl ... dpms('on')` there can silently do nothing and leave both
+    # outputs black, because after_sleep_cmd's output goes nowhere to report it.
+    symlink "$DOTFILES/hyprland/scripts/wake-monitors.sh" "$HOME/.config/hypr/scripts/wake-monitors.sh"
+    # Copies Hyprland's tmpfs log into the journal around a suspend, so a resume
+    # that ends in a hard reset still leaves evidence (journalctl -t resume-trace).
+    symlink "$DOTFILES/hyprland/scripts/resume-trace.sh" "$HOME/.config/hypr/scripts/resume-trace.sh"
+    # Lock screen launcher (roadmap 3.3). Points at the quickshell lock config
+    # under ~/.config/quickshell/lock, which needs no symlink of its own — the
+    # whole quickshell directory is symlinked, so the subdirectory comes with it.
+    symlink "$DOTFILES/hyprland/scripts/lock.sh"        "$HOME/.config/hypr/scripts/lock.sh"
     symlink "$DOTFILES/hyprland/hyprqt6engine.conf" "$HOME/.config/hypr/hyprqt6engine.conf"
     symlink "$DOTFILES/rofi"                        "$HOME/.config/rofi"
     symlink "$DOTFILES/swaync"                      "$HOME/.config/swaync"
