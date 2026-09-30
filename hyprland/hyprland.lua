@@ -290,6 +290,13 @@ hl.config({
     misc = {
         force_default_wallpaper = 0,
         disable_hyprland_logo   = true,
+        -- Lets a NEW lock client take over a session whose lock client died or
+        -- was killed. Without it the session stays locked on Hyprland's
+        -- "lockscreen died" screen and only a TTY rescue gets you out. The
+        -- session is never exposed either way: it stays locked until a lock
+        -- client authenticates. lock.sh relies on this when it replaces a
+        -- stuck instance.
+        allow_session_lock_restore = true,
     },
 })
 

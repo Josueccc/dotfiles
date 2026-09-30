@@ -169,13 +169,26 @@ ShellRoot {
     // `response` arrives as the signal's argument. The root used to call
     // `ui.inputText()` to fetch it, which threw because `ui` lives inside the
     // lock surface — see the note on the signal in LockUi.qml.
+    // A password typed while no PAM conversation is running. PAM runs ONE
+    // attempt per start(): after a wrong password it completes and goes
+    // inactive. The first version only ever started it from `secure`, and
+    // submit() began with `if (!pam.active) return;` — so after a single typo
+    // every later password was silently dropped and the lock could not be
+    // opened at all (2026-09-30, rescued from a TTY). Now a submit with no
+    // conversation starts one and hands the password over when PAM asks.
+    property string pendingResponse: ""
+
     function submit(response) {
-        if (!pam.active) return;
         // Guard the type. An undefined here is not hypothetical: it is exactly
         // what the first version passed, and `pam.respond(undefined)` does not
         // fail loudly — it kills the PAM subprocess, so the field stops
         // responding and the lock cannot be opened. Better to refuse it here.
         if (typeof response !== "string" || response === "") return;
+        if (!pam.active) {
+            pendingResponse = response;
+            startAuth();
+            return;
+        }
         pam.respond(response);
     }
 
@@ -189,6 +202,11 @@ ShellRoot {
     function onPamMessage(msg, isError, responseRequired, responseVisible) {
         pamMessage = msg === "Password: " || msg === "Password:" ? "" : msg;
         pamFailed = isError;
+        if (responseRequired && pendingResponse !== "") {
+            const r = pendingResponse;
+            pendingResponse = "";
+            pam.respond(r);
+        }
     }
 
     // PamResult: Success, Failed, Error, MaxTries
@@ -207,6 +225,11 @@ ShellRoot {
             pamMessage = result === 3 ? "Too many attempts"
                                       : "Authentication failed";
             pamFailed = true;
+            // Have the next attempt waiting, so the next Enter goes straight
+            // to PAM. Deferred: starting a conversation from inside the
+            // completion of the previous one is asking for re-entrancy trouble.
+            // faillock still counts every failure; this does not bypass it.
+            Qt.callLater(root.startAuth);
         }
     }
 
@@ -248,6 +271,7 @@ ShellRoot {
     // id would not be in scope from the root regardless. LockUi takes focus in
     // its own Component.onCompleted, which is the correct moment anyway.
     function startAuth() {
+        if (pam.active) return;
         if (!pam.start()) onAuthError();
     }
 
