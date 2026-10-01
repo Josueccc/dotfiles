@@ -122,6 +122,9 @@ hl.on("hyprland.start", function()
     hl.exec_cmd("swayosd-server")
     hl.exec_cmd("hypridle")
     hl.exec_cmd("dunst")
+    -- GTK3 on Wayland takes the cursor theme from GSettings, not from the
+    -- environment, so without this GTK apps keep drawing Adwaita.
+    hl.exec_cmd("gsettings set org.gnome.desktop.interface cursor-theme Bibata-Modern-Classic")
     -- Night light. hyprsunset reads hyprsunset.conf and applies the profile
     -- matching the current time, then swaps profiles on its own at their times.
     hl.exec_cmd("pkill -x hyprsunset 2>/dev/null; hyprsunset")
@@ -148,6 +151,14 @@ end)
 ---- ENVIRONMENT VARIABLES ----
 -------------------------------
 
+-- Without a theme set, everything fell through to /usr/share/icons/default
+-- (Adwaita) while GTK's settings.ini said breeze_cursors. Bibata is XCursor
+-- only (no manifest.hl), so hyprcursor falls back to XCURSOR_THEME; the
+-- HYPRCURSOR_THEME line just keeps the two from disagreeing. Try others live
+-- with `hyprctl setcursor <dir-name> 24`; the name is the directory under
+-- /usr/share/icons or ~/.icons, not index.theme's Name=.
+hl.env("XCURSOR_THEME", "Bibata-Modern-Classic")
+hl.env("HYPRCURSOR_THEME", "Bibata-Modern-Classic")
 hl.env("XCURSOR_SIZE", "24")
 hl.env("HYPRCURSOR_SIZE", "24")
 -- "kde" = KDEPlasmaPlatformTheme6.so from plasma-integration. It reads
@@ -299,19 +310,6 @@ hl.config({
         -- client authenticates. lock.sh relies on this when it replaces a
         -- stuck instance.
         allow_session_lock_restore = true,
-    },
-})
-
-hl.config({
-    cursor = {
-        -- Force hardware cursors. The default (2 = auto) turns them off on
-        -- NVIDIA, and the Samsung's HDMI port is on the GTX 1650 while we
-        -- render on the AMD iGPU: a software cursor means every mouse move
-        -- re-renders the frame and blits it across GPUs. With 0 the NVIDIA
-        -- draws the cursor on its own plane. Tested live on driver 615: no
-        -- glitches, slightly smoother. Revert to 2 if the cursor ever vanishes
-        -- or freezes on HDMI-A-1.
-        no_hardware_cursors = 0,
     },
 })
 
