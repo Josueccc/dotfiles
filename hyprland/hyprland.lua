@@ -303,6 +303,19 @@ hl.config({
 })
 
 hl.config({
+    cursor = {
+        -- Force hardware cursors. The default (2 = auto) turns them off on
+        -- NVIDIA, and the Samsung's HDMI port is on the GTX 1650 while we
+        -- render on the AMD iGPU: a software cursor means every mouse move
+        -- re-renders the frame and blits it across GPUs. With 0 the NVIDIA
+        -- draws the cursor on its own plane. Tested live on driver 615: no
+        -- glitches, slightly smoother. Revert to 2 if the cursor ever vanishes
+        -- or freezes on HDMI-A-1.
+        no_hardware_cursors = 0,
+    },
+})
+
+hl.config({
     xwayland = {
         force_zero_scaling = true,
     },
