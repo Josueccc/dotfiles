@@ -327,12 +327,15 @@ hl.config({
 hl.config({
     input = {
         kb_layout    = "us, latam",
-        -- Standard US, not "intl," (US international with dead keys). The variant
-        -- list is positional and parallel to kb_layout, so the empty first entry
-        -- is the US layout's "no variant" and the trailing comma is Latam's.
+        -- US "altgr-intl", not "intl," (US international with dead keys). The
+        -- variant list is positional and parallel to kb_layout, so the first entry
+        -- is the US variant and the trailing comma is Latam's "no variant".
         -- With "intl," the accented characters are dead keys: it types ñ as
         -- <dead-accent> then n, which is easy to forget you are doing.
-        kb_variant   = ",",
+        -- altgr-intl has no dead keys on the plain layer; accents live behind
+        -- AltGr (AltGr+n = ñ, AltGr+a = á, AltGr+/ = ¿, AltGr+Shift+1 = ¡), which
+        -- the BORNE keyboard's Vial symbol layer (hold Enter) sends directly.
+        kb_variant   = "altgr-intl,",
         follow_mouse = 1,
         sensitivity  = 0,
 
