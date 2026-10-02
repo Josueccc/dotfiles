@@ -1,0 +1,12 @@
+[SddmGreeterTheme]
+Name=rizz
+Description=Login screen that follows the wallpaper — the quickshell lock's twin
+Author=zerathul
+License=MIT
+Type=sddm-theme
+Version=0.1
+MainScript=Main.qml
+ConfigFile=theme.conf
+Theme-Id=rizz
+Theme-API=2.0
+QtVersion=6

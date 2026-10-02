@@ -3,6 +3,8 @@
 #
 #   apply-theme.sh <image>   Generate palette from <image> and reload all apps.
 #   apply-theme.sh           Same, reusing the wallpaper waypaper last set.
+#   apply-theme.sh --sddm-only  Copy the current wallpaper + palette to the SDDM
+#                            theme's data dir and stop (install-sddm-theme.sh).
 #   apply-theme.sh --seed    Write static Catppuccin fallbacks into any missing
 #                            generated-colors files (used by install.sh; safe
 #                            to re-run — never overwrites real wallust output).
@@ -11,6 +13,7 @@
 #   hyprland borders · waybar · rofi · swaync · kitty · alacritty · tmux  (wallust)
 #   GTK3 apps: thunar, blueman, gnome-disks                        (matugen)
 #   Firefox chrome + about: pages                                 (wallust)
+#   SDDM login screen, if sddm/install-sddm-theme.sh has been run  (wallust)
 #
 # Browsers/Electron notes: Firefox is a wallust template like the rest, but it
 # cannot follow the ~/.config/<tool>/ convention — its profile dir is named with
@@ -43,6 +46,9 @@ seed() { # seed <path> <content...>
     printf '%s\n' "$@" > "$path"
     log "seeded: $path"
 }
+
+SDDM_ONLY=0
+if [ "${1:-}" = "--sddm-only" ]; then SDDM_ONLY=1; shift; fi
 
 if [ "${1:-}" = "--seed" ]; then
     seed "$HOME/.config/hypr/generated-colors.lua" \
@@ -229,7 +235,7 @@ if [ "${1:-}" = "--seed" ]; then
 fi
 
 # ── Normal mode ───────────────────────────────────────────────────────────────
-command -v wallust >/dev/null 2>&1 || { log "wallust not installed, skipping"; exit 0; }
+[ "$SDDM_ONLY" = 1 ] || command -v wallust >/dev/null 2>&1 || { log "wallust not installed, skipping"; exit 0; }
 
 wallpaper="${1:-}"
 
@@ -244,6 +250,36 @@ if [ -z "$wallpaper" ] || [ ! -f "$wallpaper" ]; then
     exit 0
 fi
 
+# ── SDDM login screen (roadmap 5.4) ──────────────────────────────────────────
+# The greeter runs as the `sddm` user and cannot read $HOME, so the wallpaper
+# and the wallust-rendered palette are COPIED into /var/lib/rizz-sddm/, which
+# sddm/install-sddm-theme.sh creates and hands to this user. No dir, or not
+# writable → the theme is not installed here, and this is a silent no-op.
+# Both files are written to a temp name and renamed, so a greeter starting at
+# the wrong moment reads the old file or the new one, never half of one.
+SDDM_DATA=/var/lib/rizz-sddm
+sync_sddm() { # sync_sddm <wallpaper>
+    [ -d "$SDDM_DATA" ] && [ -w "$SDDM_DATA" ] || return 0
+    local ext dest conf="$CACHE/sddm-theme.conf"
+    ext=$(printf '%s' "${1##*.}" | tr '[:upper:]' '[:lower:]')
+    dest="$SDDM_DATA/wallpaper.$ext"
+    if ! cp -f "$1" "$dest.tmp" || ! mv -f "$dest.tmp" "$dest"; then
+        log "sddm: could not copy wallpaper"; return 0
+    fi
+    find "$SDDM_DATA" -maxdepth 1 -name 'wallpaper.*' ! -path "$dest" -delete
+    chmod 644 "$dest"
+    { [ -f "$conf" ] && cat "$conf" || printf '[General]\n'
+      printf 'background="%s"\n' "$dest"
+    } > "$SDDM_DATA/theme.conf.user.tmp" &&
+        chmod 644 "$SDDM_DATA/theme.conf.user.tmp" &&
+        mv -f "$SDDM_DATA/theme.conf.user.tmp" "$SDDM_DATA/theme.conf.user"
+    log "sddm: login screen synced"
+}
+
+if [ "$SDDM_ONLY" = 1 ]; then
+    sync_sddm "$wallpaper"; exit 0
+fi
+
 log "theming from $wallpaper"
 
 # wallust does not create the target directory, and ~/.config/tmux does not
@@ -252,6 +288,7 @@ log "theming from $wallpaper"
 mkdir -p "$HOME/.config/tmux"
 
 wallust run "$wallpaper" >> "$LOG" 2>&1 || { log "wallust failed"; exit 1; }
+sync_sddm "$wallpaper"
 
 # GTK3 (thunar, blueman, gnome-disks…) is themed by matugen, not wallust.
 # matugen needs --source-color-index 0 here: it runs from waypaper's post_command,

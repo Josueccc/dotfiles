@@ -37,6 +37,7 @@ Every tool we configure together must have its dotfile **here**. Never edit conf
 | GTK3 palette entry | `gtk/gtk-3.0/gtk.css` | `~/.config/gtk-3.0/gtk.css` |
 | Firefox | `firefox/userChrome.css` + `userContent.css` + `user.js` | `<profile>/chrome/` (see below) |
 | Brave | `brave/apply-brave-theme.sh` | writes `Preferences` directly |
+| SDDM | `sddm/rizz/` + `sddm/install-sddm-theme.sh` | **copied** (sudo) to `/usr/share/sddm/themes/rizz/` |
 | matugen | `matugen/templates/` + `matugen/config.toml` | (run by `wallust/apply-theme.sh`) |
 | Bash aliases/scripts | `custom.sh` | sourced from `~/.bashrc` / `~/.zshrc` |
 
@@ -539,8 +540,10 @@ submits → polkit's `supplementaryMessage` renders (it rate-limited to
 "(10 minutes left to unlock)") → Escape cancels and `pkexec` exits. The
 supplementary line is coloured by polkit's own `supplementaryIsError` flag, and
 that rate-limit notice arrives with the flag **false**, so it shows as info,
-not as an error. Styling it red by guessing would be wrong. Not verified: a
-*successful* authentication, which needs a real password.
+not as an error. Styling it red by guessing would be wrong. A *successful*
+authentication is verified too (2026-10-02, `pkexec` running the SDDM
+installer). That also makes `pkexec <script>` the way to run a root step from
+a place with no terminal for `sudo` to prompt on, such as Claude Code's `!`.
 
 ## Firefox theming (wallust → Design System tokens)
 
@@ -664,6 +667,39 @@ assert the rendered colour equals the seed — the mixer transforms it.
 
 Discord is deliberately untouched: it exposes no theming surface at all, and the
 only route is a loader that patches `app.asar`, which re-breaks on every update.
+
+## SDDM login screen (roadmap 5.4)
+
+`sddm/rizz/` is a hand-written greeter theme, the twin of the quickshell lock:
+same Gaussian-blurred wallpaper, scrim, 110px clock, password pill and palette
+names. It **follows the wallpaper**, which needs care because the greeter runs
+as the `sddm` user and cannot read a 700 `$HOME`:
+
+- `sudo sddm/install-sddm-theme.sh` **copies** the theme to
+  `/usr/share/sddm/themes/rizz/` (a symlink into the repo would be unreadable),
+  creates `/var/lib/rizz-sddm/` owned by the user, symlinks the theme's
+  `theme.conf.user` into it, and writes `/etc/sddm.conf.d/zz-rizz.conf`.
+  **Re-run it after editing anything in `sddm/rizz/`.** `--revert` removes the
+  conf file.
+- `apply-theme.sh` → `sync_sddm` copies the wallpaper and the wallust-rendered
+  `~/.cache/wallust/sddm-theme.conf` there on every change. No dir → no-op.
+- Only **data** crosses that boundary (an image, key=value colours), never
+  QML, so a user-level process can recolour the login screen but not change
+  what it does.
+- `zz-` is load-bearing: conf.d is read alphabetically, the last value wins,
+  and `kde_settings.conf` already sets `Current=Ant-Dark-Plasma-6`.
+- SDDM reads `theme.conf.user` after `theme.conf` (QSettings); values are
+  quoted because they start with `#`.
+- Warning colours (failed login, caps lock) are **fixed** red/yellow, as in the
+  tmux statusline: wallust's `color1` was `#4A4753` under deer-forest. The
+  quickshell lock had the same grey "red" and now uses a fixed one too.
+
+Test without logging out: `sddm-greeter-qt6 --test-mode --theme <dir>` opens it
+as a normal window (one per screen). In test mode `sddm.can*` are false, so the
+power buttons hide, and a login never gets an answer — force those states in a
+scratch copy to see them. `hl.dsp.send_shortcut` types into it.
+
+Plymouth (the boot splash) is still the stock `cachyos` theme.
 
 ## opencode (two config files, two different jobs)
 

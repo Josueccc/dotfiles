@@ -189,8 +189,10 @@ two idle file managers are nearly indistinguishable.
   gated on the flow, not on `open`, because a request arrives at an arbitrary
   moment), real key events typing into the password field, Enter submitting,
   polkit's `supplementaryMessage` rendering (it rate-limited to "(10 minutes
-  left to unlock)"), and Escape cancelling with `pkexec` exiting. Not verified:
-  a *successful* auth, which needs a real password; the identity picker, gated
+  left to unlock)"), and Escape cancelling with `pkexec` exiting. A *successful*
+  auth is verified too (2026-10-02): `pkexec sddm/install-sddm-theme.sh` from a
+  shell with no terminal for sudo, password typed into the quickshell prompt,
+  script ran as root. Not verified: the identity picker, gated
   on `identities.length > 1` and this machine has one; and the "held by …"
   line, gated on a non-empty `holds` that is empty here.
 - [x] **3.3 Lock-screen now-playing** — done. The old entry said this "means
@@ -311,7 +313,19 @@ two idle file managers are nearly indistinguishable.
 - [ ] **5.1 Swap waypaper → mpvpaper** as wallpaper manager (video + static); bigger rewrite of the picker's rofi grid
 - [ ] **5.2 niri scroll-driven WM** — in the repos, ~20min test in a TTY; smoothest tiling there is
 - [ ] **5.3 Audio vibes** — always-on cava, album art in the bar, ~~now-playing on the lock screen~~ (done by 3.3, in quickshell). Album art in the bar is what remains
-- [ ] **5.4 Display manager theme** — SDDM/plymouth so login matches the rice
+- [~] **5.4 Display manager theme** — **SDDM installed 2026-10-02 (via `pkexec`), the installed
+      theme verified in `--test-mode` through the real `/var/lib` symlink, and confirmed on a real
+      logout/login by the user. Plymouth not started.** `sddm/rizz/` is a hand-written greeter
+      built as the quickshell lock's twin, and it **follows the wallpaper**: the greeter (user `sddm`)
+      cannot read `$HOME`, so `apply-theme.sh` copies the wallpaper and a wallust-rendered palette
+      into `/var/lib/rizz-sddm/`, and the theme's `theme.conf.user` symlinks there. Data only, never
+      QML, crosses into the greeter. The conf file is `zz-rizz.conf` because `kde_settings.conf`
+      already sets `Current=Ant-Dark-Plasma-6` and the last file read wins. Verified in
+      `--test-mode`: blurred deer-forest, palette, real name from `userModel`, session label, typed
+      dots, and (forced) the failed state and the power row. Found on the way: wallust's "red" is
+      `#4A4753` under deer-forest, so the failure outline was grey — fixed red/yellow here and in the
+      quickshell lock, per the tmux rule. And the `Write` tool turned `"\uf053"` escapes into literal
+      glyphs (the `\u{F0004}` form survived) — check with a script after writing glyphs that way.
 
 ---
 

@@ -43,3 +43,9 @@ tmuxstyle = { template = "colors-tmux-styles.conf", target = "~/.config/tmux/gen
 # palette names and source indices are identical to colors-waybar.css on
 # purpose, so the bar and the dashboard overlay cannot drift apart.
 quickshell = { template = "colors-quickshell.json", target = "~/.config/quickshell/generated-colors.json" }
+# The SDDM login screen (roadmap 5.4). The greeter runs as the `sddm` user and
+# cannot read $HOME, so this is rendered into the cache and apply-theme.sh
+# copies it — with the wallpaper — into /var/lib/rizz-sddm/, which
+# sddm/install-sddm-theme.sh creates. Rendering straight into /var/lib would
+# make wallust fail on any machine where the theme is not installed.
+sddm      = { template = "colors-sddm.conf",       target = "~/.cache/wallust/sddm-theme.conf" }

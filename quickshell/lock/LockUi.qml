@@ -88,6 +88,11 @@ Item {
         }
     }
 
+    // Fixed, not pal.adapter.red: wallust's color1 is only "red" by position
+    // (#4A4753, a grey-purple, under deer-forest), so a wrong password was
+    // outlined in grey. Same rule as the tmux statusline in CLAUDE.md.
+    readonly property color failColor: "#f38ba8"
+
     // ── Clock ────────────────────────────────────────────────────────────────
     // Second precision, unlike the dashboard's Minutes. A lock screen is
     // usually the first thing looked at and often the only thing on screen,
@@ -347,7 +352,7 @@ Item {
                 color: Qt.alpha(pal.adapter.base, 0.8)
                 // 2px outline, as 1.2 had.
                 border.width: 2
-                border.color: ui.authFailed ? pal.adapter.red : pal.adapter.blue
+                border.color: ui.authFailed ? ui.failColor : pal.adapter.blue
                 Behavior on border.color { ColorAnimation { duration: 140 } }
             }
 
@@ -407,7 +412,7 @@ Item {
             width: parent.width
             visible: ui.authMessage !== ""
             text: ui.authMessage
-            color: ui.authFailed ? pal.adapter.red : pal.adapter.subtext0
+            color: ui.authFailed ? ui.failColor : pal.adapter.subtext0
             font.family: ui.nf
             font.pixelSize: 12
             horizontalAlignment: Text.AlignHCenter
