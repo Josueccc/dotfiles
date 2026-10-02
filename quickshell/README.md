@@ -172,11 +172,10 @@ The prompt uses a fixed glyph instead.
 
 ## Not verified
 
-- **The blur layer rule.** `hyprland.lua` adds `blur-quickshell` for this
-  namespace, but no layer-rule blur is rendering in the session this was built
-  in — `rofi` fails the same control test, and the rules have been in the
-  config since Phase 0. So this is *not* specific to quickshell; see the
-  session notes. The card is built to be legible without it: measured
+- ~~**The blur layer rule.**~~ Verified 2026-10-02: `blur-quickshell` blurs,
+  measured against a control namespace (CLAUDE.md, Dashboard overlay). The
+  earlier failure was a session that predated the config edit. The card is
+  still built to be legible without blur: measured
   `(24,24,37)` inside, i.e. fully opaque, not the see-through mess a naive
   `rgba(0,0,0,0.55)` gives over a terminal.
 - **Multi-monitor.** The `PanelWindow` is anchored to all four edges and so

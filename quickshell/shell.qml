@@ -760,13 +760,19 @@ PanelWindow {
                                 spacing: 10
                                 Repeater {
                                     model: [
-                                        { glyph: "", fn: "previous", can: "canGoPrevious" },
-                                        { glyph: "", fn: "togglePlaying", can: "canTogglePlaying" },
-                                        { glyph: "", fn: "next", can: "canGoNext" }
+                                        { glyph: "\uf048", fn: "previous", can: "canGoPrevious" },
+                                        { glyph: "\uf04b", fn: "togglePlaying", can: "canTogglePlaying" },
+                                        { glyph: "\uf051", fn: "next", can: "canGoNext" }
                                     ]
                                     Text {
                                         required property var modelData
-                                        text: modelData.glyph
+                                        // Escapes, not typed glyphs: a hand-typed private-use
+                                        // character lands on the wrong codepoint (CLAUDE.md). This
+                                        // was U+F013, a gear, and the skip pair was step-back (F048)
+                                        // with fast-forward (F050). Play becomes pause (F04C) while
+                                        // the player is playing, so the button shows the action.
+                                        text: modelData.fn === "togglePlaying" && root.mpris !== null && root.mpris.isPlaying
+                                            ? "\uf04c" : modelData.glyph
                                         color: root.mpris !== null && root.mpris[modelData.can]
                                             ? pal.adapter.text : pal.adapter.overlay0
                                         font.family: root.nf

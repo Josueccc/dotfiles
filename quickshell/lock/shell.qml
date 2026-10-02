@@ -17,6 +17,7 @@
 // quickshell/README.md for the traps, several of which cost real time here.
 
 import QtQuick
+import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
@@ -64,24 +65,49 @@ ShellRoot {
             // which is a protocol-level failure, not a cosmetic one.
             //
             // So: `grim` to a temp file first, then lock, then show the file.
-            // The blur is Image.sourceSize — decoding the PNG at 160x90 and
-            // letting fillMode magnify it back up. No compositor blur, which is
-            // the right call twice over: quickshell's BackgroundEffect only
-            // applies to its own layer surfaces and an ext-session-lock surface
-            // is a different protocol, and this session already fails the blur
-            // control test anyway (rofi renders no blur either).
+            // One file PER OUTPUT (`grim -o`). A bare `grim` writes every
+            // output into one canvas, and cropping that onto each screen showed
+            // the Samsung a slice of the combined desktop rather than its own.
+            //
+            // The blur is a real Gaussian (MultiEffect) over the Image. It used
+            // to be Image.sourceSize — decode at 160x90 and let the GPU stretch
+            // it 16x back up — which "cannot fail to apply" but reads as a
+            // badly compressed picture, not as a blur: bilinear magnification
+            // leaves blocky smears. No compositor blur either way:
+            // quickshell's BackgroundEffect only applies to its own layer
+            // surfaces, and an ext-session-lock surface is a different protocol.
+            //
+            // A failed capture still cannot stop the lock: the Image then has
+            // no Ready status, and the surface's flat colour shows instead.
+            readonly property bool bgReady: bg.status === Image.Ready
             Image {
                 id: bg
+                // Overscan by the blur radius. A blur near an edge samples
+                // the transparent outside and darkens the border; pushing the
+                // edge off-screen hides that, at a ~6% zoom nobody can see
+                // through a 64px blur.
                 anchors.fill: parent
-                visible: root.bgReady
-                source: root.bgReady ? root.bgUrl : ""
+                anchors.margins: -blur.blurMax
+                visible: false            // drawn only through the effect
+                source: root.captured && surface.screen
+                    ? root.bgUrlFor(surface.screen.name) : ""
                 fillMode: Image.PreserveAspectCrop
+                cache: false
                 asynchronous: false
-                // Decode small, display large. Qt box-filters the downscale and
-                // the GPU bilinear-filters the upscale, which is a blur that
-                // cannot fail to apply.
-                sourceSize.width: 160
-                sourceSize.height: 90
+                // Half resolution is plenty under a 64px blur and halves the
+                // texture the effect has to sample.
+                sourceSize.width: 1280
+            }
+            MultiEffect {
+                id: blur
+                anchors.fill: bg
+                source: bg
+                visible: surface.bgReady
+                autoPaddingEnabled: false
+                blurEnabled: true
+                blur: 1.0
+                blurMax: 64
+                blurMultiplier: 0
             }
 
             // The dim. hyprlock used brightness 0.75 / contrast 0.89 as
@@ -89,7 +115,7 @@ ShellRoot {
             // blow out the highlights the way a brightness filter can.
             Rectangle {
                 anchors.fill: parent
-                visible: root.bgReady
+                visible: surface.bgReady
                 color: Qt.alpha("#000000", 0.55)
             }
 
@@ -97,7 +123,7 @@ ShellRoot {
             // bright wallpaper instead of only in the middle.
             Rectangle {
                 anchors.fill: parent
-                visible: root.bgReady
+                visible: surface.bgReady
                 gradient: Gradient {
                     GradientStop { position: 0.0; color: Qt.alpha("#000000", 0.28) }
                     GradientStop { position: 0.5; color: "transparent" }
@@ -157,10 +183,18 @@ ShellRoot {
         // "specified user was not found" if you pass it.
         user: Quickshell.env("USER") || ""
 
-        onCompleted: root.onAuthCompleted(result)
-        onError: root.onAuthError(error)
-        onPamMessage: (message, isError, responseRequired, responseVisible) =>
-            root.onPamMessage(message, isError, responseRequired, responseVisible)
+        // Formal parameters, not the injected `result`/`error` names, which
+        // Qt deprecates and warns about on every lock.
+        onCompleted: result => root.onAuthCompleted(result)
+        onError: error => root.onAuthError(error)
+        // `pamMessage` is a signal with NO arguments: the message and its
+        // flags are properties on the context. This handler used to declare
+        // four parameters, which all arrived `undefined` — so PAM's own text
+        // (faillock's "account locked" included) never showed, and
+        // `responseRequired` was never true, so a password stashed in
+        // pendingResponse was never handed over and that Enter was lost.
+        onPamMessage: root.onPamMessage(pam.message, pam.messageIsError,
+                                        pam.responseRequired, pam.responseVisible)
     }
 
     property string pamMessage: ""
@@ -295,24 +329,31 @@ ShellRoot {
     // longer than the timeout, the lock engages ANYWAY on a flat themed
     // background. A decorative background must never be able to stop the machine
     // locking: a missing capture costs the blur, and nothing else.
-    readonly property string bgPath:
-        (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/quickshell-lock-bg.png"
-    readonly property string bgUrl: "file://" + bgPath
-    property bool bgReady: false
+    readonly property string bgDir:
+        (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/quickshell-lock"
+    function bgUrlFor(name) { return "file://" + bgDir + "/" + name + ".png" }
+    property bool captured: false
     property bool engaged: false
 
+    // Every output in parallel, one file each. The old captures are deleted
+    // first: a grim that fails for one output must leave that screen flat, not
+    // showing the desktop from the LAST time the machine was locked.
     Process {
         id: grab
-        command: ["grim", root.bgPath]
+        command: ["sh", "-c", `
+            dir=$1; shift
+            mkdir -p "$dir" && rm -f "$dir"/*.png
+            fail=0; pids=
+            for o in "$@"; do grim -o "$o" "$dir/$o.png" & pids="$pids $!"; done
+            for p in $pids; do wait "$p" || fail=1; done
+            exit $fail`, "sh", root.bgDir].concat(Quickshell.screens.map(s => s.name))
         // Non-zero exit (no grim, no permission, compositor busy) still engages
-        // the lock — it just leaves bgReady false and the flat background shows.
+        // the lock — a screen whose file is missing just shows the flat colour.
         onExited: (exitCode, exitStatus) => {
-            if (exitCode === 0) {
-                root.bgReady = true;
-            } else {
+            if (exitCode !== 0)
                 console.warn("quickshell lock: grim exited " + exitCode
-                             + ", locking with a flat background");
-            }
+                             + ", some screens lock with a flat background");
+            root.captured = true;
             root.engage();
         }
     }

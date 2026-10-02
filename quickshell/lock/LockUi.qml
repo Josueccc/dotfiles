@@ -150,7 +150,7 @@ Item {
         width: Math.min(parent.width - 80, 520)
         spacing: 10
 
-        // U+F09C, and NOT the U+F0233 that hyprlock 1.2 used and that the
+        // U+F023, and NOT the U+F0233 that hyprlock 1.2 used and that the
         // roadmap records as "the lock".
         //
         // In JetBrainsMono Nerd Font, U+F0233 is a *filter* glyph — a funnel
@@ -161,12 +161,14 @@ Item {
         // way the 1.2 note is wrong for the font this file pins, so it is
         // corrected here rather than copied.
         //
-        // U+F09C verified by rendering a labelled sheet of candidates and
-        // looking at it — a closed padlock with a shackle. Codepoint names are
-        // not evidence; the sheet is.
+        // This was U+F09C, recorded here as "a closed padlock with a shackle".
+        // Rendered from the TTF it is an OPEN one, shackle swung free, which on
+        // a lock screen says the opposite. Codepoint names are not evidence and
+        // neither is a comment; render the candidates from the font and look.
+        // Written as an escape so the codepoint cannot drift on an edit.
         ShadowedText {
             anchors.horizontalCenter: parent.horizontalCenter
-            text: ""
+            text: "\uf023"
             color: pal.adapter.blue
             shadowColor: Qt.alpha(pal.adapter.crust, 0.8)
             font.family: ui.nf
@@ -276,13 +278,19 @@ Item {
                         spacing: 14
                         Repeater {
                             model: [
-                                { glyph: "", fn: "previous", can: "canGoPrevious" },
-                                { glyph: "", fn: "togglePlaying", can: "canTogglePlaying" },
-                                { glyph: "", fn: "next", can: "canGoNext" }
+                                { glyph: "\uf048", fn: "previous", can: "canGoPrevious" },
+                                { glyph: "\uf04b", fn: "togglePlaying", can: "canTogglePlaying" },
+                                { glyph: "\uf051", fn: "next", can: "canGoNext" }
                             ]
                             Text {
                                 required property var modelData
-                                text: modelData.glyph
+                                // Escapes, not typed glyphs: a hand-typed private-use
+                                // character lands on the wrong codepoint (CLAUDE.md). This
+                                // was U+F013, a gear, and the skip pair was step-back (F048)
+                                // with fast-forward (F050). Play becomes pause (F04C) while
+                                // the player is playing, so the button shows the action.
+                                text: modelData.fn === "togglePlaying" && ui.mpris !== null && ui.mpris.isPlaying
+                                    ? "\uf04c" : modelData.glyph
                                 // Null-guarded, not just capability-gated. The
                                 // card is hidden when there is no player, but
                                 // `visible: false` does not stop a binding from

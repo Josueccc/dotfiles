@@ -24,7 +24,7 @@ The foundation. Full wallpaper-driven theming pipeline, verified live:
 ## 🟢 Phase 1 — Quick wins (1–2h total, zero new architecture)
 
 - [x] **1.1 Commit Phase 0** — done (rizz work in one commit, unrelated pending edits in another)
-- [x] **1.2 hyprlock** — verified live: padlock glyph, 110px clock, pill input, hint line, blurred desktop bg, `hide_cursor`. Glyph note: the lock is U+F0233 and the user icon is U+F0004 — the old user glyph was U+F033E, which is a padlock-with-dot, so the screen had two locks on it
+- [x] **1.2 hyprlock** — verified live: padlock glyph, 110px clock, pill input, hint line, blurred desktop bg, `hide_cursor`. Glyph note: the lock is U+F0233 and the user icon is U+F0004 — the old user glyph was U+F033E, which is a padlock-with-dot, so the screen had two locks on it. **Superseded by 3.3:** hyprlock is now only the fallback on `Super+Ctrl+Shift+L`; the primary lock is quickshell, and in its pinned font U+F0233 turned out to be a funnel, not a lock
 - [x] **1.3 hyprsunset night light** — done, but *not* with a timer: hyprsunset 0.4 has native time-based profiles (`hyprland/hyprsunset.conf`, 00:00 identity / 18:45 5000K / 22:30 3500K), autostarted from `hyprland.lua`. `Super+Shift+M` = manual override via `hyprland/scripts/nightlight.sh`
 - [x] **1.4 cava in the waybar** — live and reacting to audio. `custom/cava` module + `waybar/scripts/cava.sh` + `cava/config` (raw/ascii mode, digits→block glyphs, colored from the wallpaper palette in CSS). Two bugs found by testing rather than by looking: `bar_delimiter = 0` does not mean "no separator", it emits a NUL byte, and `noise_reduction` needs to be low (60) or the bars barely move
 - [x] **1.5 Window rule polish** — done: `popup()` helper in `hyprland.lua` floats/sizes/centers pavucontrol, nm-connection-editor, blueman, GTK/portal file choosers, thunar archive dialogs, satty/swappy; polkit popups are pinned too
@@ -141,8 +141,8 @@ two idle file managers are nearly indistinguishable.
   VLC (including the `|| "Unknown Title"` fallbacks and the `canXyz` capability
   gates), CPU/RAM/load, and the **whole keyboard** — type-to-filter, Backspace,
   Up/Down, Escape, and Enter actually launching an app, all driven with real key
-  events (see the `send_shortcut` note below). Not verified: the
-  `blur-quickshell` layer rule, and `Super+D` itself, which needs a real
+  events (see the `send_shortcut` note below). Not verified: `Super+D`
+  itself, which needs a real
   keypress.
 
 - [x] **3.2 Absorb what quickshell does natively better** — done, both halves.
@@ -193,9 +193,52 @@ two idle file managers are nearly indistinguishable.
   a *successful* auth, which needs a real password; the identity picker, gated
   on `identities.length > 1` and this machine has one; and the "held by …"
   line, gated on a non-empty `holds` that is empty here.
-- [ ] **3.3 Lock-screen now-playing** *(scope B+, not started)* —
-      `Wayland.WlSessionLock` would deliver the missing half of 5.3. Note this
-      means replacing hyprlock, which Phase 1.2 tuned by hand.
+- [x] **3.3 Lock-screen now-playing** — done. The old entry said this "means
+      replacing hyprlock"; that already happened in `e8b453d`, as
+      `quickshell/lock/` — a separate quickshell *process* (`lock.sh` →
+      `quickshell -p ~/.config/quickshell/lock`), so a QML error in the
+      dashboard can never mean an unlocked machine. `Super+Ctrl+L` and hypridle
+      both use it; hyprlock stays on `Super+Ctrl+Shift+L` as the fallback. It
+      also follows the wallpaper, which hyprlock never could (no includes).
+      `4d6242f` fixed the one real-world failure: after a wrong password PAM
+      went inactive and every later password was dropped (TTY rescue).
+
+  **The now-playing card had never been looked at, and three of its six
+  glyphs were wrong.** Verified 2026-10-02 by loading `LockUi.qml` in a plain
+  `PanelWindow` (a live session lock cannot be screenshotted — that is the
+  protocol working) with VLC on MPRIS:
+  - play/pause was **U+F013, a gear** — and the dashboard had the same gear.
+    Both now show play (F04B) or pause (F04C) from `isPlaying`.
+  - prev/next were step-back (F048) with **fast-forward** (F050); now the
+    matching step-forward (F051).
+  - the "closed padlock" U+F09C is an **open** padlock — on a lock screen.
+    Now U+F023. Its comment claimed it had been checked against a rendered
+    sheet; it had not, or not that one.
+  All are now `\uXXXX` escapes, so they cannot drift when the file is edited.
+  Seen on screen: art, elided title, artist, pause→play flipping when the
+  player pauses, card hidden with no player, zero QML warnings in either
+  state. Not verified: the dashboard's copy of the fix on screen (identical
+  code; the running instance picks it up on its next start), and clicking the
+  controls while actually locked.
+
+  **Then two more fixes, found by using it (2026-10-02):**
+  - **The blur looked like a bad JPEG.** It was `sourceSize` 160x90 stretched 16x
+    back up — blocky bilinear smears, not a blur. Now a real Gaussian
+    (`MultiEffect`, `blurMax: 64`) over a half-res decode, overscanned by the
+    blur radius so the edges do not darken. And the capture is **per output**
+    (`grim -o`, in parallel, old files deleted first): a bare `grim` writes all
+    outputs into one canvas, so each screen showed a crop of the *combined*
+    desktop — invisible under the old smear, obvious under a clean blur.
+    Confirmed by the user on a real lock.
+  - **`pamMessage` has no arguments**, and the handler declared four. They were
+    all `undefined`: PAM's own text never showed (faillock's lockout notice
+    included), and `responseRequired` was never true, so the password stashed
+    by `4d6242f`'s lockout fix was never handed over — that Enter was silently
+    lost. Now reads `pam.message` / `pam.responseRequired`. Proved against a
+    throwaway PAM stack (`pam_exec expose_authtok /bin/true`, no real
+    password): new code → `completed result=0`; old code → the same
+    `Cannot assign [undefined] to QString` as the live log, password still
+    pending at timeout.
 - [ ] **3.4 Waybar migration** — still deferred. The bar is already verified
       pixel-correct on a 0.3.x API that is versioned per-minor, so the
       regression surface is large and the payoff is zero.
@@ -205,7 +248,10 @@ two idle file managers are nearly indistinguishable.
 - [ ] **4.1 Live video wallpapers** — `mpvpaper` replaces the `swaybg` waypaper backend
 - [x] **4.2 awww transitions** — done. `backend = awww` in `waypaper/config.ini` (waypaper 2.9 has a native awww backend: it starts the daemon, kills the old painter, reads the `swww_transition_*` keys). `wave` @30° / 1.2s / 60fps, verified animating via mid-transition screenshots. Picker now goes through `waypaper --wallpaper` so `post_command` → `apply-theme.sh` keeps firing; the awww/swaybg fallbacks call it themselves. Also fixed `folder` (was `~/Downloads`, empty → now `~/Pictures/wallpapers`)
 - [x] **4.3 Terminal flex** — done, and the transparency number is measured, not taste.
-      Opacity is **0.85** in both kitty and alacritty: a translucent terminal sits over a *blurred*
+      **Now out of step — decide:** `826ed01` set kitty to **0.75** as a taste call; alacritty
+      is still 0.85 and 0.75 was never measured (it sits between 36/51 and 49/51 below). Either put
+      kitty back to 0.85 or accept 0.75 and update alacritty, CLAUDE.md and kitty's own comment.
+      Opacity was **0.85** in both kitty and alacritty: a translucent terminal sits over a *blurred*
       wallpaper, so the contrast that matters is not the palette pair wallust already guarantees but
       the foreground against the wallpaper showing through. Swept over 51 wallpapers, each with its
       own wallust palette, worst case = brightest 1% of the blurred image: 0.60 → 21/51 wallpapers
@@ -246,9 +292,9 @@ two idle file managers are nearly indistinguishable.
 - [x] **4.4 hypridle chain** — the timing was already right (5 min fade → 15 min lock → 25 min dpms off → 45 min suspend, was locking at 6). The **fade** landed as `hyprland/scripts/dim-ramp.sh`, and chasing it turned up two defects that had been hiding in plain sight:
 
   - **`brightnessctl set 10` is a raw sysfs value, not 10%.** The panel maxes at 65535, so the dim step was asking for 0.015% — a black screen at five minutes — directly under a comment that said it was dimming the panel. The script takes a real percentage, converts it against the device max (10% → 6553), and interpolates a **smoothstep**, because a linear fade spends most of its time in the invisible tail and looks like a stall. The lock at 15 min then lands on an already-faded panel, so no second ramp: adding one would widen the window in which someone who came back still gets locked.
-  - **The 25-minute screen blank had never run.** This Hyprland's `hyprctl` is the Lua build, so `hyprctl dispatch dpms off` is rewritten to `hl.dispatch(dpms off)` and dies on a Lua parse error — off a timer, into a log nobody reads. The working form is `hyprctl eval "hl.dispatch(hl.dsp.dpms('off'))"`. The same bug was live in `hyprland.lua` twice: `Super+space` (switchxkblayout) and the `hyprctl dispatch exit` half of `Super+M`, the latter masked because `hyprshutdown` is tried first and exists.
+  - **The 25-minute screen blank had never run.** This Hyprland's `hyprctl` is the Lua build, so `hyprctl dispatch dpms off` is rewritten to `hl.dispatch(dpms off)` and dies on a Lua parse error — off a timer, into a log nobody reads. The working form is `hyprctl eval "hl.dispatch(hl.dsp.dpms({ action = 'off' }))"` — the string form `dpms('off')` turned out to be a **toggle** of every output (see CLAUDE.md), which is why the wake path later misbehaved. The same bug was live in `hyprland.lua` twice: `Super+space` (switchxkblayout) and the `hyprctl dispatch exit` half of `Super+M`, the latter masked because `hyprshutdown` is tried first and exists.
 
-  - **The obvious repair for `Super+space` is unverifiable, so it was replaced instead.** There *is* a Lua `switchxkblayout` dispatcher, but no constructor fails — a dispatcher named `totally_bogus_name` returns `ok` exactly like a real one — so four plausible call shapes all reported success while the keymap never moved. Rather than ship a call that only *looks* right, `hyprland/scripts/toggle-kb-layout.sh` rewrites the layout list with `hl.config({input={…}})`, which is observable: `English (US)` ↔ `Spanish (Latin American)`, verified both ways. The catch is that `input:kb_layout` and `input:kb_variant` are **parallel lists** — rotating one alone puts the `intl` variant on the Spanish layout, which types `ñ` as `~`. The layout is now **standard US** rather than US-international: `"intl,"` makes the accented characters dead keys, which is easy to forget you are holding one.
+  - **The obvious repair for `Super+space` is unverifiable, so it was replaced instead.** There *is* a Lua `switchxkblayout` dispatcher, but no constructor fails — a dispatcher named `totally_bogus_name` returns `ok` exactly like a real one — so four plausible call shapes all reported success while the keymap never moved. Rather than ship a call that only *looks* right, `hyprland/scripts/toggle-kb-layout.sh` rewrites the layout list with `hl.config({input={…}})`, which is observable: `English (US)` ↔ `Spanish (Latin American)`, verified both ways. The catch is that `input:kb_layout` and `input:kb_variant` are **parallel lists** — rotating one alone puts the `intl` variant on the Spanish layout, which types `ñ` as `~`. The layout is now **standard US** rather than US-international: `"intl,"` makes the accented characters dead keys, which is easy to forget you are holding one. *(Pending, uncommitted as of 2026-10-02: `kb_variant = "altgr-intl,"` — no dead keys on the plain layer, accents behind AltGr, which the BORNE keyboard's Vial symbol layer sends directly. CLAUDE.md still says standard US.)*
 
   - **The toggle is a read-modify-write, and that made rapid presses vanish.** Two presses arriving together could both read the same list and both write the same answer, so one was silently lost — reported as "I have to wait a moment before it cycles". It reproduced roughly one press in three, which is the worst shape of bug: intermittent, so it looks like a flaky key rather than a race, and the first two attempts to reproduce it failed. Fixed with `flock` around the whole read-compute-write; verified with 2 and 3 *simultaneous* presses over repeated rounds, not with sequential ones.
 
@@ -258,11 +304,13 @@ two idle file managers are nearly indistinguishable.
 
   Still open: whether 10% is the right floor for reading a password in daylight. It is the number the config always intended; it has just never actually happened before.
 
+- [x] **4.5 Re-check layer blur after a relog** — **it works; nothing was ever broken.** Verified 2026-10-02 in a fresh session: a half-transparent test layer named `rofi` or `quickshell` cut the edge detail behind it ~70x (edge variance 1369 -> 19) against a control namespace no rule matches. The earlier failure was the stale session — the rules were never broken. Two things the test needs: the layer's alpha must be above the rule's `ignore_alpha` (0.4 for rofi), or the pixels are skipped and nothing blurs; and compare against a control namespace, not against memory.
+
 ## ⚫ Phase 5 — Bleed edge / someday
 
 - [ ] **5.1 Swap waypaper → mpvpaper** as wallpaper manager (video + static); bigger rewrite of the picker's rofi grid
 - [ ] **5.2 niri scroll-driven WM** — in the repos, ~20min test in a TTY; smoothest tiling there is
-- [ ] **5.3 Audio vibes** — always-on cava, album art in the bar, now-playing on the lock screen. The lock-screen half overlaps 3.3, which would do it in quickshell instead of hyprlock
+- [ ] **5.3 Audio vibes** — always-on cava, album art in the bar, ~~now-playing on the lock screen~~ (done by 3.3, in quickshell). Album art in the bar is what remains
 - [ ] **5.4 Display manager theme** — SDDM/plymouth so login matches the rice
 
 ---
@@ -280,7 +328,7 @@ two idle file managers are nearly indistinguishable.
 
 - **`swww` is dead** — it was archived upstream and isn't installed; `awww` is the successor and is what waypaper drives now
 - **`hypridle` timed the lock at 6 min** (`timeout = 360`), which fired during a long build and hid the desktop. Now 5 min dim → 15 min lock → 25 min dpms off → 45 min suspend. Suspend moved to last on purpose: at the old 30 min it could suspend mid-build while the screen was still lit
-- **hypridle 0.1.8 is the current Arch version** and it does *not* support the newer `dpms` / `check_interval` listener keys (verified by feeding it deliberately bogus keys and watching which ones it rejects). The fade/DPMS chain from 4.4 needs a newer hypridle, so for now it's a plain `hyprctl dispatch dpms off` on a timer
+- **hypridle 0.1.8 is the current Arch version** and it does *not* support the newer `dpms` / `check_interval` listener keys (verified by feeding it deliberately bogus keys and watching which ones it rejects). so the DPMS step is a timer listener calling `hyprctl eval "hl.dispatch(hl.dsp.dpms({ action = 'off' }))"` — the bare `hyprctl dispatch dpms off` this note used to recommend is a Lua parse error on this build
 - **`waypaper/config.ini` is gitignored** — waypaper rewrites the whole file on every pick. Settings moved to `waypaper/config.ini.template`, seeded by install.sh; volatile keys go to waypaper's own state file via `use_xdg_state = True`
 - **waybar is restarted** by `wallust/apply-theme.sh` on every wallpaper change, so a cava launched by waybar dies with it — the wrapper script reaps stale ones on startup
 - **waybar's cava module is not available on Arch** (upstream builds with `-Dcava=disabled`), hence `custom/cava`
@@ -313,7 +361,7 @@ two idle file managers are nearly indistinguishable.
 - **A percentage that is not a percentage** — `brightnessctl set 10` is a raw sysfs value; on a 65535-max panel it is 0.015%, i.e. black. The command takes `50%` if you mean percent, and a comment saying "dim" is not evidence that it dims
 - **A one-shot `set` is not a fade**, and a linear one looks like a stall: interpolate with a smoothstep so the ends are gentle, or most of the ramp happens where nobody can see it
 - **A bash `trap` on TERM runs the handler and keeps going** — a cleanup-only trap lets a killed ramp keep writing brightness after `wake` restored it. The handler has to `exit`
-- **This machine's `hyprctl` is the Lua build, and it fails as a parse error, not a usage error** — `hyprctl dispatch dpms off` becomes `hl.dispatch(dpms off)`. A timer-driven command that dies this way logs nothing where anyone looks, so a step can be broken for months and still look configured. Use `hyprctl eval "hl.dsp.dpms('off')"`
+- **This machine's `hyprctl` is the Lua build, and it fails as a parse error, not a usage error** — `hyprctl dispatch dpms off` becomes `hl.dispatch(dpms off)`. A timer-driven command that dies this way logs nothing where anyone looks, so a step can be broken for months and still look configured. Use `hyprctl eval "hl.dispatch(hl.dsp.dpms({ action = 'off' }))"` — both the `hl.dispatch` wrapper and the table form are required (the string form toggles)
 - **`hypridle -v` does not exit** — it prints the rules and then keeps running, so a bare `hypridle -c … -v` hangs the shell. `timeout 3` it; `| head` only works because `head` closes the pipe
 - **`ps -C <script>` and `pgrep -x <script>` do not find your own scripts** — the kernel `comm` is `bash`, not the script name. And `pgrep -f <pattern>` finds *your own shell* whenever the pattern is in the command line you are running, which is why counting processes by pattern is not a way to count ramps
 - **hypridle reads its config once and has no reload** — a fixed config does nothing until the daemon is restarted, which makes a correct fix look broken (the same shape as the `hl.env` trap above)
@@ -333,7 +381,8 @@ two idle file managers are nearly indistinguishable.
 - **A catch-all `else` in a QML `Keys` handler silently eats text input** — routing unhandled keys with `search.text = event.text` replaces the query with one character, so typing "kit" leaves "t". It reproduces on the first keypress but reads like the field losing focus rather than a string being overwritten, which is how it got shipped. Handle only the keys you want and leave the rest **unaccepted**, so the focused item does its own editing
 - **Two items both claiming focus is a silent, intermittent bug** — a proxy `Item` carrying `focus: root.open` next to a `TextInput` that also wants focus. Only one wins and which one is not deterministic
 - **Resetting one half of a two-variable piece of state desyncs the other half** — `open_()` cleared the `filter` property but not the `TextInput`'s own `text`, so reopening showed the previous query in the field while the list was filtered by an empty string
-- **OPEN: no layer-rule blur is rendering in this session, and it is not quickshell's fault.** The `blur-quickshell` rule was added for 3.1 and does nothing — but `rofi`, which has had `blur-rofi` since Phase 0, fails the same control test, with terminal text behind it perfectly sharp. `decoration:blur` is enabled (size 6, 2 passes, `new_optimizations` true), `hyprctl configerrors` is empty, and `hyprctl reload` returns `ok`. Applying a rule at runtime via `hyprctl eval "hl.layer_rule({…})"` also returns `ok` and changes nothing observable — another `ok is not a result`. Session started 09:12:57, config edited 11:27, so the usual stale-session explanation applies and **this needs a relog to test properly**. Either blur regressed at some point in Phase 0 and was never re-checked, or 0.56.2's Lua build does not re-register layer rules on reload. Note `hyprctl layerrules` does not exist on this build ("unknown request"), so there is no way to read the rules back — `hyprctl keyword` is also refused ("keyword can't work with non-legacy parsers"). Worth a dedicated item.
+- **A comment saying a glyph was checked is not a check** — the lock screen's padlock carried a note that it had been verified against a rendered sheet, and it rendered as an *open* padlock. The media row next to it had a gear for play/pause, copied from the dashboard, so both surfaces shipped it. Render from the TTF with PIL every time, and write private-use glyphs as `\uXXXX` escapes so an edit cannot move them
+- **CLOSED (4.5): "no layer-rule blur is rendering" was the stale session, not a bug.** The rofi control test failed in a session started before the config edit; in a fresh one every rule blurs. Same lesson as `hl.env`: compare the session start time with the file mtime *before* concluding anything is broken. And `hyprctl eval "hl.layer_rule({…})"` returning `ok` while nothing changed was, again, `ok` not being a result
 
 ## ⚡ Perf notes (GTX 1650 + Vega iGPU)
 

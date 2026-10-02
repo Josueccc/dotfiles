@@ -470,9 +470,13 @@ delivers a real key event to the **focused client**. `mods` is required and must
 be a string. It does *not* fire keybinds, which is why `Super+D` and
 `Super+space` are still verified only by `hyprctl binds`.
 
-Not yet verified: the `blur-quickshell` layer rule — see the OPEN entry in
-RIZZ-ROADMAP.md, where `rofi` fails the same blur test, so it is a pre-existing
-session issue rather than a quickshell one.
+The `blur-quickshell` layer rule works, and so do the others. Verified
+2026-10-02 by putting a half-transparent test layer over text under three
+namespaces: a control no rule matches, `rofi`, and `quickshell`. The two matched
+ones cut the edge detail behind them ~70x (edge variance 1369 → 19). An earlier
+"no layer blur renders at all" finding came from a session that predated the
+config edit. To repeat the test, the layer's alpha must be **above** the rule's
+`ignore_alpha` (0.4 for rofi), or those pixels are skipped and nothing blurs.
 
 ## Polkit + power profile in quickshell (roadmap 3.2)
 
