@@ -38,7 +38,7 @@ Every tool we configure together must have its dotfile **here**. Never edit conf
 | Kvantum | `kvantum/` | `~/.config/Kvantum/` |
 | KDE globals | `kde/kdeglobals` | `~/.config/kdeglobals` |
 | GTK3 palette entry | `gtk/gtk-3.0/gtk.css` | `~/.config/gtk-3.0/gtk.css` |
-| Firefox | `firefox/userChrome.css` + `userContent.css` + `user.js` | `<profile>/chrome/` (see below) |
+| Firefox | `firefox/userChrome.css` + `user.js` (bars only, no `userContent.css`) | `<profile>/chrome/` (see below) |
 | Brave | `brave/apply-brave-theme.sh` | writes `Preferences` directly |
 | SDDM | `sddm/rizz/` + `sddm/install-sddm-theme.sh` | **copied** (sudo) to `/usr/share/sddm/themes/rizz/` |
 | matugen | `matugen/templates/` + `matugen/config.toml` | (run by `wallust/apply-theme.sh`) |
@@ -612,8 +612,9 @@ a place with no terminal for `sudo` to prompt on, such as Claude Code's `!`.
 
 ## Firefox theming (wallust → Design System tokens)
 
-Firefox 156 follows the wallpaper. `wallust/templates/colors-firefox.css` writes
-`firefox/generated-colors.css`, and `firefox/link-profile.sh` symlinks four files
+Firefox 156's **bars** follow the wallpaper — tab strip, nav bar, URL bar, sidebar,
+panels — and nothing else. `wallust/templates/colors-firefox.css` writes
+`firefox/generated-colors.css`, and `firefox/link-profile.sh` symlinks three files
 into the profile. The `chrome/` subdirectory is the whole mechanism, and four
 things about it are all silent failures:
 
@@ -658,16 +659,16 @@ them first and they look like a perfect answer.
 with importing after its rules because GTK's CSS parser is lenient; Firefox uses a
 spec-compliant parser and silently drops an out-of-order `@import`. That is why the
 palette is split into `fallback.css` (tracked) and `generated-colors.css`
-(generated), both imported at the top of `userChrome.css`/`userContent.css`, rather
+(generated), both imported at the top of `userChrome.css`, rather
 than a fallback block followed by an import.
 
-**about: pages are content documents**, so they resolve against a different half of
-the design system. The hook is the primitive ramp, not the widgets:
-`about:preferences` sets `--background-color-canvas: light-dark(var(--color-gray-0),
-var(--color-gray-90))` and paints from it. Overriding `--color-gray-*` and
-`--color-accent-primary` re-themes every internal page without naming a selector.
-Reachable: preferences, addons, newtab, config, logins, profiles, about:blank.
-**`about:downloads` is not** — it is not a normal content docshell, so don't try.
+**There is no `userContent.css`, on purpose (2026-10-05).** It used to theme the
+about: pages through the `--color-gray-*` / `--color-accent-primary` ramp, but
+userContent applies to **every web page**, and its `color-scheme: dark` and `body`
+background rules restyled real sites. Only the browser chrome is themed now; the
+ramp is gone from the palette too. `link-profile.sh` deletes a leftover
+`userContent.css` link. If about: pages are ever wanted again, scope the rules with
+`@-moz-document url-prefix("about:")` instead of bare selectors.
 
 ### The accent is `color7`, and that was measured, not chosen
 

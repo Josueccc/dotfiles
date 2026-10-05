@@ -85,9 +85,10 @@ two idle file managers are nearly indistinguishable.
 
 - [x] **2.6 Browsers/Electron** — **Firefox done, Brave done (reduced), Discord declined.**
       **Firefox 156** follows the wallpaper via `wallust/templates/colors-firefox.css` →
-      `firefox/{userChrome,userContent,fallback,generated-colors}.css`, linked into
-      `<profile>/chrome/` by `firefox/link-profile.sh`. Both browser chrome *and*
-      the about: pages are themed. The `chrome/` subdirectory (not the profile root)
+      `firefox/{userChrome,fallback,generated-colors}.css`, linked into
+      `<profile>/chrome/` by `firefox/link-profile.sh`. Only the browser chrome is
+      themed — the about:/content theming (`userContent.css`) was removed 2026-10-05
+      because it restyled real web pages. The `chrome/` subdirectory (not the profile root)
       is the entire mechanism, and `--lwt-*` is dead in 156 — see CLAUDE.md for the
       four silent-failure traps and the token names. Verified by two-colour probe
       (213,082 cyan / 0 magenta) and by pixel-sampling the live `about:preferences`

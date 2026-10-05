@@ -12,7 +12,7 @@
 # Wired up via waypaper's post_command, so every wallpaper change re-themes:
 #   hyprland borders · waybar · rofi · swaync · kitty · alacritty · tmux  (wallust)
 #   GTK3 apps: thunar, blueman, gnome-disks                        (matugen)
-#   Firefox chrome + about: pages                                 (wallust)
+#   Firefox chrome (bars only — web pages are left alone)           (wallust)
 #   SDDM login screen, if sddm/install-sddm-theme.sh has been run  (wallust)
 #
 # Browsers/Electron notes: Firefox is a wallust template like the rest, but it
@@ -153,20 +153,6 @@ if [ "${1:-}" = "--seed" ]; then
         '  --panel-text-color: #cdd6f4 !important;' \
         '  --panel-border-color: #1e1e2e !important;' \
         '  --focus-outline-color: #a6adc8 !important;' \
-        '  --color-gray-100: #11111b !important;' \
-        '  --color-gray-95: #11111b !important;' \
-        '  --color-gray-90: #11111b !important;' \
-        '  --color-gray-85: #1e1e2e !important;' \
-        '  --color-gray-80: #1e1e2e !important;' \
-        '  --color-gray-40: #a6adc8 !important;' \
-        '  --color-gray-30: #cdd6f4 !important;' \
-        '  --color-gray-20: #cdd6f4 !important;' \
-        '  --color-gray-10: #cdd6f4 !important;' \
-        '  --color-gray-0: #cdd6f4 !important;' \
-        '  --color-accent-primary: #a6adc8 !important;' \
-        '  --color-accent-primary-hover: #a6adc8 !important;' \
-        '  --color-accent-primary-active: #585b70 !important;' \
-        '  --color-accent-primary-selected: #bac2de !important;' \
         '}'
     # tmux palette. tmux owns ~/.tmux.conf (not a config dir), so the generated
     # file lands in ~/.config/tmux/, which is outside this repo and therefore

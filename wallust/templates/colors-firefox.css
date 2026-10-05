@@ -85,25 +85,4 @@
      de-emphasised is `color7`. A three-tier ramp looked tidier and failed.
      ───────────────────────────────────────────────────────────────────────── */
   --focus-outline-color: {{color7}} !important;
-
-  /* ── Internal (about:) pages ─────────────────────────────────────────────
-     These are content documents and resolve against a different half of the
-     design system. The primitive ramp is the right hook: about:preferences sets
-     `--background-color-canvas: light-dark(var(--color-gray-0),
-     var(--color-gray-90))` and paints itself from it, so overriding the ramp
-     re-themes the page without naming a single widget. ────────────────────── */
-  --color-gray-100: {{background}} !important;  /* deepest */
-  --color-gray-95:  {{background}} !important;
-  --color-gray-90:  {{background}} !important;  /* canvas */
-  --color-gray-85:  {{color0}} !important;
-  --color-gray-80:  {{color0}} !important;       /* raised boxes */
-  --color-gray-40: {{color7}} !important;       /* muted / de-emphasised text */
-  --color-gray-30: {{foreground}} !important;    /* secondary text */
-  --color-gray-20:  {{foreground}} !important;  /* body text */
-  --color-gray-10:  {{foreground}} !important;   /* headings */
-  --color-gray-0:   {{foreground}} !important;
-  --color-accent-primary: {{color7}} !important;  /* links: 8.29 */
-  --color-accent-primary-hover:   {{color7}} !important;
-  --color-accent-primary-active:  {{color5}} !important;
-  --color-accent-primary-selected: {{color6}} !important;
 }

@@ -5,9 +5,8 @@
 # and the name changes if the profile is ever recreated, so the profile path has
 # to be resolved from profiles.ini at link time rather than hardcoded.
 #
-# Creates <profile>/chrome/ and symlinks four files into it:
+# Creates <profile>/chrome/ and symlinks three files into it:
 #   userChrome.css        browser chrome            (tracked)
-#   userContent.css       internal/about: pages     (tracked)
 #   fallback.css          static Catppuccin palette (tracked)
 #   generated-colors.css  wallust palette           (generated, gitignored)
 # plus <profile>/user.js for the prefs.
@@ -81,10 +80,17 @@ link() { # link <src> <dst>
 
 echo "==> Linking theme files into <profile>/chrome/"
 link "$FIREFOX_DIR/userChrome.css"        "$dest/chrome/userChrome.css"
-link "$FIREFOX_DIR/userContent.css"       "$dest/chrome/userContent.css"
 link "$FIREFOX_DIR/fallback.css"          "$dest/chrome/fallback.css"
 link "$FIREFOX_DIR/generated-colors.css"  "$dest/chrome/generated-colors.css"
 link "$FIREFOX_DIR/user.js"               "$dest/user.js"
+
+# There is deliberately no userContent.css: it applies to every web page, and
+# its color-scheme/body rules restyled sites. Only the bars are themed. Remove
+# the link an older version of this script left behind.
+if [ -L "$dest/chrome/userContent.css" ]; then
+    rm "$dest/chrome/userContent.css"
+    echo "==> Removed old userContent.css link"
+fi
 
 # ── Drop a stray content-override ────────────────────────────────────────────
 # user.js already pins this to 2, which is what actually governs behaviour, but

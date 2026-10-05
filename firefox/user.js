@@ -7,7 +7,7 @@
 // behaviour (GlobalStyleSheetCache::InitFromProfile checks it), so a broken
 // theme can always be escaped with `firefox -safe-mode`.
 
-// ── The gate for userChrome.css / userContent.css ───────────────────────────
+// ── The gate for userChrome.css ───────────────────────────
 // Without this, both stylesheets are read from disk and silently discarded —
 // no warning, no error. It still defaults to false in 156.
 user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);

@@ -42,21 +42,4 @@
   --panel-border-color: #1e1e2e !important;
 
   --focus-outline-color: #a6adc8 !important;
-
-  /* Content-page ramp — the same two roles: darkest for surfaces, lightest for
-   * text. about:preferences builds its own background from --color-gray-90. */
-  --color-gray-100: #11111b !important;
-  --color-gray-95:  #11111b !important;
-  --color-gray-90:  #11111b !important;
-  --color-gray-85:  #1e1e2e !important;
-  --color-gray-80:  #1e1e2e !important;
-  --color-gray-40:  #a6adc8 !important;
-  --color-gray-30:  #cdd6f4 !important;
-  --color-gray-20:  #cdd6f4 !important;
-  --color-gray-10:  #cdd6f4 !important;
-  --color-gray-0:   #cdd6f4 !important;
-  --color-accent-primary:         #a6adc8 !important;
-  --color-accent-primary-hover:   #a6adc8 !important;
-  --color-accent-primary-active:  #585b70 !important;
-  --color-accent-primary-selected: #bac2de !important;
 }
