@@ -1,29 +1,35 @@
 #!/usr/bin/env bash
-# Wallpaper picker — rofi image grid → awww transition → re-theme.
+# Wallpaper picker — Super+W. Opens the quickshell carousel
+# (quickshell/wallpaper/shell.qml); a second press closes it.
 #
-# Everything goes through waypaper on purpose. It owns the awww backend: it
-# launches awww-daemon, kills whatever painted the background before (swaybg,
-# hyprpaper, swww), builds the transition from the swww_transition_* keys in
-# ~/.config/waypaper/config.ini, and fires `post_command` — which is what
-# re-themes the desktop through wallust/apply-theme.sh. Do not bypass it with a
-# bare `awww img`: nothing would re-theme afterwards.
+# The picker only chooses. Setting goes through wallpaper.sh, which handles
+# images AND videos and keeps the waypaper → post_command → apply-theme.sh
+# chain that re-themes the desktop. See the header there.
 #
-# The awww/swaybg branches below only run on machines without waypaper, so they
-# have to invoke apply-theme.sh themselves.
-#
-# Change WALLPAPER_DIR to wherever your wallpapers live.
-WALLPAPER_DIR="${WALLPAPER_DIR:-$HOME/Pictures/wallpapers/}"
+# Without quickshell this falls back to the old rofi grid, now listing videos
+# too (by their cached thumbnails).
+set -u
 
-chosen=$(find "$WALLPAPER_DIR" -maxdepth 3 -type f \( \
-        -iname "*.jpg" -o -iname "*.jpeg" -o \
-        -iname "*.png" -o -iname "*.webp"  -o \
-        -iname "*.gif" \) \
-    | sort \
-    | while IFS= read -r img; do
-        # Pass full path as both the text label and the icon;
-        # element-text is hidden in the theme-str below, so only
-        # the image thumbnail is visible.
-        printf '%s\0icon\x1f%s\n' "$img" "$img"
+CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/wallpaper"
+WALLPAPER_SH="$HOME/.config/waybar/scripts/wallpaper.sh"
+
+if command -v quickshell >/dev/null 2>&1 && [ -f "$CONFIG/shell.qml" ]; then
+    # Toggle. -f on the config path, which is specific enough not to match the
+    # dashboard (a bare `quickshell`) or the lock (…/quickshell/lock) — and not
+    # this shell either, whose command line does not contain it.
+    if pkill -f "quickshell -p $CONFIG" >/dev/null 2>&1; then
+        exit 0
+    fi
+    # The carousel opens on the focused monitor; see `screen:` in shell.qml for
+    # why this is passed in rather than read there.
+    mon=$(hyprctl monitors -j 2>/dev/null | jq -r '.[] | select(.focused) | .name' 2>/dev/null)
+    RIZZ_MONITOR="$mon" setsid quickshell -p "$CONFIG" >/dev/null 2>&1 &
+    exit 0
+fi
+
+chosen=$("$WALLPAPER_SH" list \
+    | while IFS=$'\t' read -r _kind path thumb; do
+        printf '%s\0icon\x1f%s\n' "$path" "$thumb"
     done \
     | rofi -dmenu \
         -p "  Wallpaper" \
@@ -38,35 +44,4 @@ chosen=$(find "$WALLPAPER_DIR" -maxdepth 3 -type f \( \
             inputbar { margin: 0 0 8px 0; }
         ')
 
-[ -z "$chosen" ] && exit 0
-
-# Same transition as waypaper/config.ini, in case we have to drive awww here.
-transition=(
-    --transition-type wave
-    --transition-angle 30
-    --transition-fps 60
-    --transition-duration 1.2
-    --transition-step 20
-)
-
-if command -v waypaper >/dev/null 2>&1; then
-    waypaper --wallpaper "$chosen"
-    exit 0
-fi
-
-if command -v awww >/dev/null 2>&1; then
-    awww query >/dev/null 2>&1 || {
-        pkill -x swaybg >/dev/null 2>&1
-        setsid awww-daemon >/dev/null 2>&1 &
-        sleep 0.4
-    }
-    awww img "$chosen" "${transition[@]}"
-    "$HOME/.config/wallust/apply-theme.sh" "$chosen"
-    exit 0
-fi
-
-if command -v swaybg >/dev/null 2>&1; then
-    pkill -x swaybg >/dev/null 2>&1
-    swaybg -i "$chosen" -m fill &
-    "$HOME/.config/wallust/apply-theme.sh" "$chosen"
-fi
+[ -n "$chosen" ] && exec "$WALLPAPER_SH" set "$chosen"

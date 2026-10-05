@@ -21,6 +21,9 @@ Every tool we configure together must have its dotfile **here**. Never edit conf
 | Waypaper | `waypaper/config.ini.template` | `~/.config/waypaper/config.ini` |
 | Wallust | `wallust/` | `~/.config/wallust/` |
 | Cava | `cava/config` | `~/.config/cava/config` |
+| mpd | `mpd/mpd.conf` | `~/.config/mpd/mpd.conf` |
+| rmpc | `rmpc/` (theme → `rmpc/themes/rizz.ron`, generated) | `~/.config/rmpc/` |
+| Pear Desktop | `pear-desktop/generated-theme.css` (generated) | listed in `~/.config/YouTube Music/config.json` → `options.themes` |
 | Swaync | `swaync/` | `~/.config/swaync/` |
 | Starship | `starship/starship.toml` | `~/.config/starship.toml` |
 | Lazygit | `lazygit/` | `~/.config/lazygit/` |
@@ -67,6 +70,23 @@ The quickshell one is the exception to "reload the app": it is a `FileView` with
 `waypaper/config.ini` is **gitignored** — waypaper rewrites the entire file on every wallpaper change, so tracking it means a dirty tree after every pick. Edit `waypaper/config.ini.template` and re-run `./install.sh --mode desktop` instead; it seeds the live file, keeping the machine's own `wallpaper`/`backend`/`folder`/`monitors`/style paths and taking everything else from the template. With `use_xdg_state = True` the volatile keys live in `~/.local/state/waypaper/state.ini` and the live config stays stable, so nothing re-dirties the tree.
 
 `backend = awww`. waypaper 2.9 speaks awww natively: it launches `awww-daemon`, kills whatever painted the background before (swaybg/hyprpaper/swww-daemon) and builds the transition from the `swww_transition_*` keys (yes, still called swww — they drive awww too). **Never set the wallpaper with a bare `awww img`**: the desktop only re-themes because waypaper fires `post_command` → `wallust/apply-theme.sh`. The awww/swaybg branches in `waybar/scripts/wallpaper-picker.sh` exist only for machines without waypaper and call `apply-theme.sh` themselves. `waypaper --restore` in the hyprland autostart does the same thing at login, so the daemon starts itself — nothing else needs to spawn it. Transition types: `fade` (bezier), `wave` (uses `swww_transition_angle`, the swoosh), `grow`/`center`/`any`/`outer` (circle), `wipe`, `random`.
+
+### Video wallpapers and the Super+W carousel (roadmap 4.1 / 5.1)
+
+**`waybar/scripts/wallpaper.sh set <file>` is the one entry point now**, for images and videos alike; the picker, the rofi fallback and the login restore all go through it. Images still take the waypaper → awww → `post_command` path unchanged. A video is **mpvpaper layered over an awww still of its own first frame**: ffmpeg extracts frame 0, waypaper sets that frame (so the wave transition plays and wallust/matugen/SDDM theme from it — none of them can read a video), then mpvpaper starts on `*`. A later layer stacks above an earlier one on the same level (`hyprctl layers` lists mpvpaper after awww-daemon), so the video covers the still and the handoff is invisible. If mpvpaper dies you see the same frame, not an old wallpaper.
+
+Do not switch to waypaper's own `backend = mpvpaper`: its awww path never kills mpvpaper and vice versa (both end up painting), it hands the video path to `post_command`, and it cannot pass `-p`/`-a full` (pause while hidden / under a fullscreen window). Login runs `wallpaper.sh restore` instead of `waypaper --restore` for the same reason — the bare restore brings back only the still. The script's own state is `~/.local/state/rizz-wallpaper/current`; waypaper's `state.ini` holds the frame's path when a video is set.
+
+Measured cost of a 1080p30 video on both outputs: mpvpaper ~12% of one core with `hwdec-current = vaapi` (Vega), Hyprland +~4 points over a paused video.
+
+**Cache names must not contain `%`.** The frame path lands in waypaper's `state.ini`, which configparser writes with interpolation on; a `%` makes waypaper fail to save its state (`invalid interpolation syntax`) and the next `--restore` brings back the previous wallpaper. Subfolder separators in `~/.cache/rizz-wallpaper/{thumbs,frames}` are `__`.
+
+The carousel is `quickshell/wallpaper/shell.qml`, its own process (`quickshell -p …/wallpaper`, like the lock), toggled by `wallpaper-picker.sh` and gone after a pick. It only chooses; `wallpaper.sh list` gives it a TSV and makes missing thumbnails in parallel (~19s for 400 files once, 35ms after — the staleness test is done in the loop so nothing forks when the cache is warm). Two things that cost a round each:
+
+- **The cards are parallelograms via `clip` on a sheared `Matrix4x4`**, with the picture counter-sheared inside. Qt clips a non-axis-aligned item with the stencil, so this needs no mask or shader.
+- **Centring is a computed `contentX`, not `highlightRangeMode`.** With cards that change width as they become current, `StrictlyEnforceRange` targets the positions at the start of the move and lands a card off centre, and `positionViewAtIndex` at startup opened 3–4 cards away from the real wallpaper. Every card before the current one is a slice, so the target is `index·(slice+gap) − (width−big)/2`. Do not add `originX` to it: it depends on `contentX` and is a binding loop. **And every delegate is the same slice-wide slot**: the current card draws wider than its slot (`face`) and the cards after it are shifted right visually. With real widths that varied, a far jump (Ctrl+R) landed beyond the created delegates and ListView placed them from its *average* item size, which included the big card — the strip came to rest off centre, sometimes with the big card on the left. Uniform slots make that estimate exact.
+
+**Testing it steals the keyboard.** The layer takes `Exclusive` keyboard focus, so a test launch while the user is typing elsewhere eats their keys into the search box (it happened). Keep test launches to a couple of seconds under `timeout`, or ask first.
 
 ## Displays (hyprland.lua MONITORS)
 
@@ -146,7 +166,7 @@ Two independent ways the old `after_sleep_cmd = hyprctl eval "hl.dispatch(hl.dsp
 
 Verified: with a deliberately poisoned signature (`deadbeef_dead_0000`) and both monitors off, the script recovered both in ~2s. With the screens already on it returns in ~0.5s (the frame check) and dispatches nothing, so putting it on the 25-minute listener's `on-resume` as well as `after_sleep_cmd` is cheap. **Real suspend with the HDMI cable in, verified 2026-09-30:** resume at 00:12:06 with both outputs reporting `dpmsStatus: 1`, frame check timed out on `HDMI-A-1` at 00:12:10, dpms cycle, `recovered` at 00:12:16, lock screen up, layers aligned. The visible cost is a ~6s black-then-blink on both screens after a docked resume. If it ever fails, the script `notify-send`s and logs to `journalctl -t wake-monitors`.
 
-**The quickshell lock must restart PAM after every failure.** `PamContext` runs one attempt per `start()`; after a wrong password it completes and goes inactive. The first version started it only from `secure` and `submit()` returned early on `!pam.active`, so after one typo every later password was dropped and the only way out was a TTY (2026-09-30). `quickshell/lock/shell.qml` now restarts it after a failure and starts one on demand for a password typed while none is running. `misc.allow_session_lock_restore = true` in `hyprland.lua` lets a replacement lock client take over a dead or stuck one instead of leaving Hyprland's "lockscreen died" screen. To replace one from a TTY, launch it **through the compositor** — `hyprctl eval "hl.exec_cmd('$HOME/.config/hypr/scripts/lock.sh')"` — because a TTY shell has no `WAYLAND_DISPLAY`, the new quickshell dies on the xcb plugin, and `lock.sh` has already killed the old one by then.
+**The quickshell lock must restart PAM after every failure.** `PamContext` runs one attempt per `start()`; after a wrong password it completes and goes inactive. The first version started it only from `secure` and `submit()` returned early on `!pam.active`, so after one typo every later password was dropped and the only way out was a TTY (2026-09-30). `quickshell/lock/shell.qml` now restarts it after a failure and starts one on demand for a password typed while none is running. **A relock shows the wallpaper, not a screenshot.** Screencopy of a locked session is solid black, and the ladder relocks on every suspend (lock at 15 min, `before_sleep_cmd` at 45), so every resume showed a black lock screen (2026-10-03, both captures mean=0). `lock.sh` exports `RIZZ_LOCK_RELOCK=1` when it had to kill a live lock, and the lock then links the still from waypaper's `state.ini` instead of running `grim`; outputs in dpms off, and a grim that fails or exceeds 1.5s, get the same still. `misc.allow_session_lock_restore = true` in `hyprland.lua` lets a replacement lock client take over a dead or stuck one instead of leaving Hyprland's "lockscreen died" screen. To replace one from a TTY, launch it **through the compositor** — `hyprctl eval "hl.exec_cmd('$HOME/.config/hypr/scripts/lock.sh')"` — because a TTY shell has no `WAYLAND_DISPLAY`, the new quickshell dies on the xcb plugin, and `lock.sh` has already killed the old one by then.
 
 ## GTK theming (matugen, GTK3 only — GTK4 is a known dead end)
 
@@ -234,6 +254,51 @@ Two more traps in this area:
 Arch's waybar is built with `-Dcava=disabled`, so the native `cava` module is unavailable — the bar uses `custom/cava` running `waybar/scripts/cava.sh`. cava's normal terminal output cannot be piped (it emits ANSI escapes unconditionally and asks stdout for a window size), so `cava/config` switches it to `method = raw` + `data_format = ascii`: one digit (0-7) per bar, which the wrapper maps to block glyphs. Colors live in `waybar/style.css` (`#custom-cava`), which inherits the wallpaper palette. Never switch the cava config to `noncurses` without also changing the wrapper.
 
 Two things in that config that look wrong but aren't: `bar_delimiter` must stay a **printable** character (setting it to `0` means "emit a NUL byte", not "no separator" — the wrapper strips non-digits anyway, which is why it degrades to clean bars rather than garbage), and `noise_reduction` needs to be lowish (60) or the bars barely move on anything but loud audio. To check the bars are actually reacting, play a tone with `paplay /usr/share/sounds/alsa/Front_Center.wav` — `pactl play-file` does not exist.
+
+## Music (mpd + rmpc, Pear Desktop)
+
+**rmpc is only a client; mpd is the player.** mpd and `mpd-mpris` run as systemd
+*user* services (`systemctl --user enable --now mpd mpd-mpris`). mpd-mpris is what
+puts mpd on MPRIS, so playerctl, the media keys and the dashboard's media card see it;
+without it rmpc plays and nothing else knows. `~/Music` is the library.
+
+**rmpc connects over mpd's unix socket (`~/.local/state/mpd/socket`), not TCP.** mpd
+only accepts `file://` adds from a client on a local socket — 127.0.0.1 does not count —
+and rmpc's YouTube playback (`:addyt <url>`, `:searchyt <query>`) downloads into
+`cache_dir` and adds the file exactly that way. mpd also does not create its state
+directories, so `install.sh` does. YouTube in rmpc is URLs/searches only — no library,
+no login; the YouTube Music library lives in Pear.
+
+**The cava pane needs `input: (method: Pulse, source: "auto")` spelled out.** rmpc's
+default writes `source =` (empty) into the cava config it generates
+(`/tmp/rmpc/cava-$UID.conf`), cava exits with "Could not open pulseaudio source: ,
+Invalid argument", and the pane stays blank — the only trace is "failed to fill whole
+buffer" in `/tmp/rmpc_$UID.log`. That log is where every rmpc problem shows up.
+
+**The theme is the whole file, not a palette.** An rmpc theme is one RON struct with no
+include, so `wallust/templates/colors-rmpc.ron` carries layout, components and the cava
+gradient too; rmpc hot-reloads it, so there is no reload line in `apply-theme.sh`. **A
+missing or broken theme drops the entire config to defaults** (an error modal and the stock
+tabs), which is why `apply-theme.sh --seed` renders the template with Catppuccin values.
+Nerd Font glyphs in it are inserted by codepoint, as in the tmux statusline: the first draft
+typed six of them and three came out as empty strings. `rmpc debuginfo` validates the
+*config* (type errors only; unknown keys are ignored) but never reads the theme — test a
+theme by running rmpc in a detached `tmux new-session -d -x 160 -y 45 rmpc` and
+`capture-pane -e`, which also shows the rendered colours without stealing focus.
+
+**Pear Desktop reads its CSS once per window.** `options.themes` in
+`~/.config/YouTube Music/config.json` (the app still calls itself "YouTube Music") is a list
+of file paths; Pear `readFileSync`s each and passes the text to `insertCSS`, so the file must
+be self-contained — an `@import` would resolve against music.youtube.com — and a wallpaper
+change applies on the next launch, not live. config.json is app-managed (window state, plugin
+settings), so it is edited, never symlinked; only the CSS lives here. The CSS overrides
+YouTube Music's own `--ytmusic-*` / `--yt-spec-*` custom properties plus a few hardcoded
+surfaces. Verified 2026-10-05 by `grim` of the window and pixel sampling: sidebar
+`#171519` = wallust `background`, active guide entry `#8C6064` = `color4`. **Large surfaces
+use `background`, never `color0`**: dark16's `color0` came out *lighter* than the
+background (`#424045`), and the first version painted the whole sidebar a flat grey. The
+config dir only exists after Pear's first launch; edit config.json with Pear closed (that is how it was done here;
+editing it under a running Pear is untested).
 
 ## Terminals and tmux
 

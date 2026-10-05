@@ -1,0 +1,240 @@
+#![enable(implicit_some)]
+#![enable(unwrap_newtypes)]
+#![enable(unwrap_variant_newtypes)]
+// rmpc — TUI client for mpd (mpd/mpd.conf). Bootstrapped from `rmpc config`,
+// trimmed to what differs from the defaults plus the parts that must be
+// spelled out in full (keybinds and tabs replace the defaults wholesale).
+//
+// Colours are NOT here: `theme: "rizz"` loads themes/rizz.ron, which wallust
+// renders from wallust/templates/colors-rmpc.ron on every wallpaper change
+// (gitignored, machine-specific). rmpc hot-reloads it, so a running player
+// recolours without a restart.
+(
+    // The unix socket, not TCP: mpd only accepts file:// adds over a local
+    // socket, and that is how YouTube playback hands mpd the downloaded file.
+    address: "~/.local/state/mpd/socket",
+    password: None,
+    theme: "rizz",
+    // Required for YouTube playback (`:addyt <url>`, `:searchyt <query>`);
+    // with no cache_dir rmpc refuses to download anything.
+    cache_dir: "~/.cache/rmpc/",
+    on_song_change: None,
+    volume_step: 5,
+    max_fps: 60,
+    scrolloff: 2,
+    wrap_navigation: true,
+    enable_mouse: true,
+    enable_config_hot_reload: true,
+    status_update_interval_ms: 1000,
+    select_current_song_on_change: true,
+    album_art: (
+        method: Auto,
+        max_size_px: (width: 1200, height: 1200),
+        disabled_protocols: ["http://", "https://"],
+        vertical_align: Center,
+        horizontal_align: Center,
+    ),
+    // The visualizer pane runs cava itself. noise_reduction is lowish for the
+    // same reason as cava/config: higher and the bars barely move.
+    cava: (
+        framerate: 60,
+        autosens: true,
+        sensitivity: 100,
+        lower_cutoff_freq: 50,
+        higher_cutoff_freq: 10000,
+        // Must be explicit. rmpc's default writes `source =` (empty) into the
+        // cava config it generates, cava's pulse input rejects that with
+        // "Could not open pulseaudio source: , Invalid argument" and exits,
+        // and the pane just stays blank (rmpc logs "failed to fill whole
+        // buffer"). Same input as cava/config: pulse via pipewire-pulse,
+        // `auto` = the default sink's monitor, i.e. what you hear.
+        input: (
+            method: Pulse,
+            source: "auto",
+        ),
+        smoothing: (
+            noise_reduction: 60,
+            monstercat: true,
+            waves: false,
+        ),
+    ),
+    keybinds: (
+        global: {
+            "q":          Quit,
+            "?":          ShowHelp,
+            ":":          CommandMode,
+            "oI":         ShowCurrentSongInfo,
+            "oo":         ShowOutputs,
+            "op":         ShowDecoders,
+            "od":         ShowDownloads,
+            "z":          ToggleRepeat,
+            "x":          ToggleRandom,
+            "c":          ToggleConsume,
+            "v":          ToggleSingle,
+            "p":          TogglePause,
+            "s":          Stop,
+            ">":          NextTrack,
+            "<":          PreviousTrack,
+            "f":          SeekForward,
+            "b":          SeekBack,
+            ".":          VolumeUp,
+            ",":          VolumeDown,
+            "<Tab>":      NextTab,
+            "<S-Tab>":    PreviousTab,
+            "1":          SwitchToTab("Queue"),
+            "2":          SwitchToTab("Visualizer"),
+            "3":          SwitchToTab("Directories"),
+            "4":          SwitchToTab("Artists"),
+            "5":          SwitchToTab("Albums"),
+            "6":          SwitchToTab("Playlists"),
+            "7":          SwitchToTab("Search"),
+            "<C-u>":      Update,
+            "<C-U>":      Rescan,
+            "R":          AddRandom,
+        },
+        navigation: {
+            "<C-c>":      Close,
+            "<Esc>":      Close,
+            "<CR>":       Confirm,
+            "k":          Up,
+            "<Up>":       Up,
+            "j":          Down,
+            "<Down>":     Down,
+            "h":          Left,
+            "<Left>":     Left,
+            "l":          Right,
+            "<Right>":    Right,
+            "<C-w>k":     PaneUp,
+            "<C-w>j":     PaneDown,
+            "<C-w>h":     PaneLeft,
+            "<C-w>l":     PaneRight,
+            "K":          MoveUp,
+            "J":          MoveDown,
+            "<C-u>":      UpHalf,
+            "<C-d>":      DownHalf,
+            "<PageUp>":   PageUp,
+            "<PageDown>": PageDown,
+            "gg":         Top,
+            "G":          Bottom,
+            "<Space>":    Select,
+            "<C-Space>":  InvertSelection,
+            "/":          EnterSearch,
+            "n":          NextResult,
+            "N":          PreviousResult,
+            "a":          Add,
+            "A":          AddAll,
+            "D":          Delete,
+            "<C-r>":      Rename,
+            "i":          FocusInput,
+            "oi":         ShowInfo,
+            "<C-z>":      ContextMenu(),
+            "<C-s>s":     Save(kind: Modal(all: false, duplicates_strategy: Ask)),
+            "<C-s>a":     Save(kind: Modal(all: true, duplicates_strategy: Ask)),
+            "r":          Rate(),
+        },
+        queue: {
+            "d":          Delete,
+            "D":          DeleteAll,
+            "<CR>":       Play,
+            "C":          JumpToCurrent,
+            "X":          Shuffle,
+        },
+    ),
+    search: (
+        case_sensitive: false,
+        ignore_diacritics: true,
+        search_button: false,
+        mode: Contains,
+        tags: [
+            (value: "any",         label: "Any Tag"),
+            (value: "artist",      label: "Artist"),
+            (value: "album",       label: "Album"),
+            (value: "title",       label: "Title"),
+            (value: "filename",    label: "Filename"),
+        ],
+    ),
+    tabs: [
+        // Home: cover + visualizer on the left, queue on the right.
+        (
+            name: "Queue",
+            pane: Split(
+                direction: Horizontal,
+                panes: [
+                    (
+                        size: "40%",
+                        pane: Split(
+                            direction: Vertical,
+                            panes: [
+                                (
+                                    size: "100%",
+                                    borders: "LEFT | RIGHT | TOP",
+                                    border_symbols: Rounded,
+                                    pane: Pane(AlbumArt),
+                                ),
+                                (
+                                    size: "10",
+                                    borders: "ALL",
+                                    border_symbols: Inherited(parent: Rounded, top_left: "├", top_right: "┤"),
+                                    pane: Pane(Cava),
+                                ),
+                            ],
+                        ),
+                    ),
+                    (
+                        size: "60%",
+                        borders: "ALL",
+                        border_symbols: Rounded,
+                        pane: Split(
+                            direction: Vertical,
+                            panes: [
+                                (size: "2", pane: Pane(QueueHeader())),
+                                (size: "100%", pane: Pane(Queue)),
+                            ],
+                        ),
+                    ),
+                ],
+            ),
+        ),
+        // Full-screen bars with synced lyrics underneath (when an .lrc exists).
+        (
+            name: "Visualizer",
+            pane: Split(
+                direction: Vertical,
+                panes: [
+                    (size: "100%", borders: "ALL", border_symbols: Rounded, pane: Pane(Cava)),
+                    (size: "5", borders: "LEFT | RIGHT | BOTTOM", border_symbols: Rounded, pane: Pane(Lyrics)),
+                ],
+            ),
+        ),
+        (
+            name: "Directories",
+            pane: Pane(Directories),
+            borders: "ALL",
+            border_symbols: Rounded,
+        ),
+        (
+            name: "Artists",
+            pane: Pane(Artists),
+            borders: "ALL",
+            border_symbols: Rounded,
+        ),
+        (
+            name: "Albums",
+            pane: Pane(Albums),
+            borders: "ALL",
+            border_symbols: Rounded,
+        ),
+        (
+            name: "Playlists",
+            pane: Pane(Playlists),
+            borders: "ALL",
+            border_symbols: Rounded,
+        ),
+        (
+            name: "Search",
+            pane: Pane(Search),
+            borders: "ALL",
+            border_symbols: Rounded,
+        ),
+    ],
+)

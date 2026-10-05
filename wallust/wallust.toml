@@ -43,6 +43,19 @@ tmuxstyle = { template = "colors-tmux-styles.conf", target = "~/.config/tmux/gen
 # palette names and source indices are identical to colors-waybar.css on
 # purpose, so the bar and the dashboard overlay cannot drift apart.
 quickshell = { template = "colors-quickshell.json", target = "~/.config/quickshell/generated-colors.json" }
+# rmpc (the mpd TUI, rmpc/config.ron). The whole theme is rendered, layout
+# included, because an rmpc theme file is one RON struct and has no include —
+# so this is the one template that carries more than colours. rmpc hot-reloads
+# it, so no reload line in apply-theme.sh. ~/.config/rmpc is a symlink into the
+# repo, hence the .gitignore entry; apply-theme.sh creates themes/, because
+# wallust does not create directories.
+rmpc      = { template = "colors-rmpc.ron",        target = "~/.config/rmpc/themes/rizz.ron" }
+# Pear Desktop (the YouTube Music app). Like Firefox, the target is in the repo
+# (gitignored) rather than in the app's config dir: ~/.config/YouTube Music/
+# does not exist until Pear first runs, and wallust does not create
+# directories. Pear's config.json points options.themes at this path; Pear
+# injects it once per window, so the colours update on the next launch.
+pear      = { template = "colors-pear.css",        target = "~/.dotfiles/pear-desktop/generated-theme.css" }
 # The SDDM login screen (roadmap 5.4). The greeter runs as the `sddm` user and
 # cannot read $HOME, so this is rendered into the cache and apply-theme.sh
 # copies it — with the wallpaper — into /var/lib/rizz-sddm/, which

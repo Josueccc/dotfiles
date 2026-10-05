@@ -43,6 +43,10 @@ These have no dotfile tracked in this repo — install manually or via package m
 - awww (wallpaper daemon — waypaper's `backend = awww`; handles the transitions)
 - swaybg (fallback wallpaper daemon — awww's predecessor, kept as a safety net)
 - waypaper (wallpaper manager GUI + CLI — config tracked in waypaper/, fires the theming hook)
+- mpvpaper (video wallpapers — started by `waybar/scripts/wallpaper.sh` on top of an awww still; pulls in mpv)
+- libvips + ffmpegthumbnailer (thumbnail cache for the Super+W carousel, `~/.cache/rizz-wallpaper/`)
+- jq (the carousel launcher reads the focused monitor from `hyprctl monitors -j`)
+- qt6-multimedia (the carousel's video preview)
 - swayosd (OSD overlay for volume and brightness indicators — server autostarted in Hyprland)
 - grimblast (screenshot, wraps grim + slurp)
 - brightnessctl (backlight control)
@@ -79,6 +83,11 @@ These have no dotfile tracked in this repo — install manually or via package m
 - playerctl (MPRIS media player control — play/pause/next via keybind)
 - pavucontrol (GUI PipeWire/PulseAudio mixer)
 - cava (terminal audio visualizer — rendered in the waybar, config tracked in cava/)
+- mpd (music server — config tracked in `mpd/`; `systemctl --user enable --now mpd`)
+- rmpc (mpd TUI with a cava visualizer, album art and YouTube playback — config tracked in `rmpc/`, theme rendered by wallust)
+- mpd-mpris (puts mpd on MPRIS for playerctl/the dashboard; `systemctl --user enable --now mpd-mpris`)
+- python-mutagen + yt-dlp (rmpc's `:addyt` / `:searchyt` YouTube playback)
+- pear-desktop-bin (AUR — YouTube Music desktop app; theme rendered by wallust, see `pear-desktop/`)
 
 ## Network
 

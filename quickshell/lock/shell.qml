@@ -331,22 +331,50 @@ ShellRoot {
     // locking: a missing capture costs the blur, and nothing else.
     readonly property string bgDir:
         (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/quickshell-lock"
-    function bgUrlFor(name) { return "file://" + bgDir + "/" + name + ".png" }
+    // No extension on purpose: the file is either grim's PNG or a symlink to
+    // the wallpaper (often a JPEG), and Qt sniffs the format from the content
+    // when there is no suffix to mislead it.
+    function bgUrlFor(name) { return "file://" + bgDir + "/" + name }
     property bool captured: false
     property bool engaged: false
 
     // Every output in parallel, one file each. The old captures are deleted
-    // first: a grim that fails for one output must leave that screen flat, not
-    // showing the desktop from the LAST time the machine was locked.
+    // first: a grim that fails for one output must not show the desktop from
+    // the LAST time the machine was locked.
+    //
+    // Some screenshots are known to be solid black before grim runs, and those
+    // screens get the wallpaper still instead (waypaper's state.ini — for a
+    // video wallpaper that is its first frame, so it is always an image):
+    //   - a relock (lock.sh found a lock process alive): screencopy of a locked
+    //     session is black. This is what hypridle's before_sleep relock hit —
+    //     a black lock screen after every resume (2026-10-03, both captures
+    //     mean=0).
+    //   - an output in dpms off (the ladder blanks at 25 min, before the
+    //     suspend at 45).
+    // A grim that fails or hangs falls back the same way; `timeout` keeps it
+    // under the 2s backstop so the fallback is in place before the lock engages.
     Process {
         id: grab
         command: ["sh", "-c", `
-            dir=$1; shift
-            mkdir -p "$dir" && rm -f "$dir"/*.png
+            dir=$1; relock=$2; shift 2
+            mkdir -p "$dir" && rm -f "$dir"/*
+            st="\${XDG_STATE_HOME:-$HOME/.local/state}/waypaper/state.ini"
+            still=$(sed -n 's/^wallpaper *= *//p' "$st" 2>/dev/null | head -n1)
+            case $still in "~/"*) still="$HOME/\${still#"~/"}" ;; esac
+            off=$(hyprctl monitors 2>/dev/null |
+                  awk '/^Monitor /{m=$2} /dpmsStatus: 0/{print m}')
             fail=0; pids=
-            for o in "$@"; do grim -o "$o" "$dir/$o.png" & pids="$pids $!"; done
+            for o in "$@"; do
+                (
+                    if [ "$relock" != 1 ] && ! printf '%s\\n' $off | grep -qx "$o" &&
+                       timeout 1.5 grim -o "$o" "$dir/$o"; then exit 0; fi
+                    rm -f "$dir/$o"
+                    [ -f "$still" ] && ln -s "$still" "$dir/$o"
+                ) & pids="$pids $!"
+            done
             for p in $pids; do wait "$p" || fail=1; done
-            exit $fail`, "sh", root.bgDir].concat(Quickshell.screens.map(s => s.name))
+            exit $fail`, "sh", root.bgDir, Quickshell.env("RIZZ_LOCK_RELOCK") || "0"]
+            .concat(Quickshell.screens.map(s => s.name))
         // Non-zero exit (no grim, no permission, compositor busy) still engages
         // the lock — a screen whose file is missing just shows the flat colour.
         onExited: (exitCode, exitStatus) => {

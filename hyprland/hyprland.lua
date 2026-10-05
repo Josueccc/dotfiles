@@ -118,7 +118,10 @@ local menu        = "rofi -show drun"
 hl.on("hyprland.start", function()
     hl.exec_cmd("waybar")
     hl.exec_cmd("swaync")
-    hl.exec_cmd("waypaper --restore")
+    -- Not a bare `waypaper --restore`: that brings back only the still, and a
+    -- video wallpaper is mpvpaper on top of it. wallpaper.sh restore runs the
+    -- waypaper restore (still + post_command theming) and then the video.
+    hl.exec_cmd("~/.config/waybar/scripts/wallpaper.sh restore")
     hl.exec_cmd("swayosd-server")
     hl.exec_cmd("hypridle")
     hl.exec_cmd("dunst")

@@ -247,7 +247,7 @@ two idle file managers are nearly indistinguishable.
 
 ## 🟣 Phase 4 — Apps & eye candy (1–2h each)
 
-- [ ] **4.1 Live video wallpapers** — `mpvpaper` replaces the `swaybg` waypaper backend
+- [~] **4.1 Live video wallpapers** — landed 2026-10-02, **needs a real video and a live look**. mpvpaper runs *on top of* an awww still of the video's first frame rather than replacing awww, via `waybar/scripts/wallpaper.sh` (see CLAUDE.md, "Video wallpapers"). Verified with a generated test clip: layer order, vaapi decode (~12% of a core for 1080p30 on both outputs), theming from the frame including SDDM, video → image → video switching, and `restore`. Not verified: how mpvpaper behaves across a suspend with the Samsung (NVIDIA) output, and whether `-p -a full` actually pauses under a fullscreen window
 - [x] **4.2 awww transitions** — done. `backend = awww` in `waypaper/config.ini` (waypaper 2.9 has a native awww backend: it starts the daemon, kills the old painter, reads the `swww_transition_*` keys). `wave` @30° / 1.2s / 60fps, verified animating via mid-transition screenshots. Picker now goes through `waypaper --wallpaper` so `post_command` → `apply-theme.sh` keeps firing; the awww/swaybg fallbacks call it themselves. Also fixed `folder` (was `~/Downloads`, empty → now `~/Pictures/wallpapers`)
 - [x] **4.3 Terminal flex** — done, and the transparency number is measured, not taste.
       **Now out of step — decide:** `826ed01` set kitty to **0.75** as a taste call; alacritty
@@ -310,7 +310,7 @@ two idle file managers are nearly indistinguishable.
 
 ## ⚫ Phase 5 — Bleed edge / someday
 
-- [ ] **5.1 Swap waypaper → mpvpaper** as wallpaper manager (video + static); bigger rewrite of the picker's rofi grid
+- [~] **5.1 Picker rewrite** — done differently from planned: waypaper stays the image path, and the rofi grid is replaced by a **quickshell carousel** (`quickshell/wallpaper/shell.qml`, Super+W): slanted cards, the middle one opens to 16:9 and loads the original (or plays the video), search, Ctrl+R shuffle, wheel/arrow navigation. Seen on screen opening on the current wallpaper and staying centred while moving; the video preview and real-keyboard feel still need the user's look. rofi remains as the fallback when quickshell is missing
 - [ ] **5.2 niri scroll-driven WM** — in the repos, ~20min test in a TTY; smoothest tiling there is
 - [ ] **5.3 Audio vibes** — always-on cava, album art in the bar, ~~now-playing on the lock screen~~ (done by 3.3, in quickshell). Album art in the bar is what remains
 - [~] **5.4 Display manager theme** — **SDDM installed 2026-10-02 (via `pkexec`), the installed

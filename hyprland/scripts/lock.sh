@@ -27,7 +27,15 @@ command -v quickshell >/dev/null 2>&1 || exit 0
 # unlocks — but a lock process that is still alive cannot lock again ("only one
 # WlSessionLock may be locked at a time"), and a stale one would otherwise make
 # the next Super+Ctrl+L do nothing at all, silently.
-pkill -f "quickshell -p $CONFIG" >/dev/null 2>&1
+#
+# A lock process that was still alive means the session is ALREADY locked, and
+# a screenshot of a locked session is solid black (Hyprland hands screencopy
+# nothing but black while locked). That is the hypridle ladder's normal path:
+# lock at 15 min, then `before_sleep_cmd` locks again at 45. The new lock is
+# told so and shows the wallpaper instead of blurring a black frame.
+if pkill -f "quickshell -p $CONFIG" >/dev/null 2>&1; then
+    export RIZZ_LOCK_RELOCK=1
+fi
 sleep 0.15
 
 setsid quickshell -p "$CONFIG" >/dev/null 2>&1 &

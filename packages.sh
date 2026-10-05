@@ -147,6 +147,10 @@ arch)
         quickshell
         # wallpaper & clipboard
         awww swaybg cliphist wl-clipboard
+        # wallpaper carousel (roadmap 4.1/5.1): thumbnails for images (vips)
+        # and videos (ffmpegthumbnailer), the focused monitor (jq), and the
+        # centre card's video preview (qt6-multimedia, QtMultimedia's Video).
+        libvips ffmpegthumbnailer jq qt6-multimedia
         # brightness & portals
         brightnessctl
         xdg-desktop-portal-hyprland xdg-desktop-portal-gtk
@@ -165,6 +169,10 @@ arch)
         gnome-keyring seahorse openssh
         # audio
         pipewire wireplumber pamixer playerctl pavucontrol cava
+        # music: mpd server + rmpc TUI (mpd/, rmpc/). mpd-mpris puts mpd on
+        # MPRIS for playerctl and the dashboard; python-mutagen lets rmpc tag
+        # what it downloads for YouTube playback (yt-dlp, ffmpeg: via mpvpaper/mpv)
+        mpd rmpc mpd-mpris python-mutagen yt-dlp
         # network
         networkmanager network-manager-applet nm-connection-editor
         # bluetooth
@@ -179,10 +187,15 @@ arch)
         wlogout
         swayosd
         waypaper
+        # video wallpapers, driven by waybar/scripts/wallpaper.sh. In the
+        # cachyos repo, AUR on plain Arch — the helper takes either.
+        mpvpaper
         wallust
         grimblast-git
         catppuccin-gtk-theme-mocha
         bibata-cursor-theme
+        # YouTube Music desktop app (themed by wallust, see pear-desktop/)
+        pear-desktop-bin
     )
 
     PACMAN_FONTS=(

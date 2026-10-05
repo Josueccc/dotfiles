@@ -231,6 +231,26 @@ if [ "${1:-}" = "--seed" ]; then
         '  "yellow": "#f9e2af", "green": "#a6e3a1", "teal": "#94e2d5",' \
         '  "sapphire": "#74c7ec", "blue": "#89b4fa", "lavender": "#b4befe"' \
         '}'
+
+    # rmpc and Pear Desktop: their templates carry the whole file (layout and
+    # rules, not just colours), so the fallback is the template itself with the
+    # Catppuccin values substituted in, rather than a hand-kept second copy
+    # that would drift from it. Only the tokens these two templates use.
+    seed_template() { # seed_template <template> <target>
+        [ -e "$2" ] && return 0
+        mkdir -p "$(dirname "$2")"
+        sed -e 's/{{background}}/#1e1e2e/g' -e 's/{{foreground}}/#cdd6f4/g' \
+            -e 's/{{color0}}/#181825/g'     -e 's/{{color4}}/#89b4fa/g' \
+            -e 's/{{color5}}/#cba6f7/g'     -e 's/{{color6}}/#94e2d5/g' \
+            -e 's/{{color7}}/#bac2de/g'     -e 's/{{color8}}/#585b70/g' \
+            "$1" > "$2" && log "seeded: $2"
+    }
+    T="$HOME/.dotfiles/wallust/templates"
+    # Only once the rmpc symlink exists: creating ~/.config/rmpc here as a
+    # real directory would stop install.sh from linking it.
+    [ -d "$HOME/.config/rmpc" ] &&
+        seed_template "$T/colors-rmpc.ron" "$HOME/.config/rmpc/themes/rizz.ron"
+    seed_template "$T/colors-pear.css" "$HOME/.dotfiles/pear-desktop/generated-theme.css"
     exit 0
 fi
 
@@ -286,6 +306,9 @@ log "theming from $wallpaper"
 # exist on a fresh install — without this the tmux template silently fails and
 # .tmux.conf falls back to its static Catppuccin palette.
 mkdir -p "$HOME/.config/tmux"
+# Same for rmpc's themes/ (rmpc/config.ron loads themes/rizz.ron). Only when
+# rmpc's config dir exists — creating it here would shadow the repo symlink.
+[ -d "$HOME/.config/rmpc" ] && mkdir -p "$HOME/.config/rmpc/themes"
 
 wallust run "$wallpaper" >> "$LOG" 2>&1 || { log "wallust failed"; exit 1; }
 sync_sddm "$wallpaper"

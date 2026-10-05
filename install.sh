@@ -193,6 +193,14 @@ if [ "$MODE" = "desktop" ]; then
     # and the README belongs with the code.
     symlink "$DOTFILES/quickshell"                  "$HOME/.config/quickshell"
     symlink "$DOTFILES/cava/config"                 "$HOME/.config/cava/config"
+    # Music: mpd is the server, rmpc the TUI client. Desktop-only although
+    # rmpc is a TUI, because its theme comes from wallust — without the seed
+    # below, rmpc errors on the missing themes/rizz.ron and drops the WHOLE
+    # config back to defaults. mpd does not create its own state directories,
+    # and the unix socket rmpc connects to lives in one of them.
+    symlink "$DOTFILES/mpd/mpd.conf"                "$HOME/.config/mpd/mpd.conf"
+    symlink "$DOTFILES/rmpc"                        "$HOME/.config/rmpc"
+    mkdir -p "$HOME/.local/share/mpd/playlists" "$HOME/.local/state/mpd"
     symlink "$DOTFILES/qt5ct"                       "$HOME/.config/qt5ct"
     symlink "$DOTFILES/qt6ct"                       "$HOME/.config/qt6ct"
     symlink "$DOTFILES/kvantum"                     "$HOME/.config/Kvantum"
