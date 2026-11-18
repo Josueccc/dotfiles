@@ -325,6 +325,128 @@ PanelWindow {
         polkit.flow.cancelAuthenticationRequest();
     }
 
+    // ── Focus timer ──────────────────────────────────────────────────────────
+    // A view onto waybar/scripts/focus.sh, never a second implementation: the
+    // script owns the state machine, the systemd timers, DND and the log, and
+    // this card only reads its files and runs its subcommands. Two timers that
+    // each kept their own idea of "now in focus" would disagree within a day.
+    //
+    // No watchChanges on these. The script replaces `state` with a tmp + mv,
+    // and a file watcher follows the old inode and goes quiet after the first
+    // rename. A ~40-byte file re-read on the 1s tick that already runs while the
+    // overlay is open costs nothing and cannot go stale.
+    readonly property string focusDir:
+        (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state"))
+        + "/rizz-focus"
+    readonly property string focusCmd:
+        Quickshell.env("HOME") + "/.config/waybar/scripts/focus.sh"
+    // Mirrors of the script's constants, used only for drawing (progress bar and
+    // the colour change). The script is the one that acts on them.
+    readonly property int focusNudgeMin: 90
+
+    FileView { id: focusStateFile; path: root.focusDir + "/state";   printErrors: false; blockLoading: true }
+    FileView { id: focusLogFile;   path: root.focusDir + "/log.tsv"; printErrors: false; blockLoading: true }
+
+    // "<mode> <phase> <start> <end>", the script's own format.
+    readonly property var focus: {
+        const _ = root.tick;
+        const f = (focusStateFile.text() || "").trim().split(/\s+/);
+        return {
+            mode: f[0] || "flow",
+            phase: f[1] || "idle",
+            start: Number(f[2]) || 0,
+            end: Number(f[3]) || 0,
+            now: Math.floor(Date.now() / 1000)
+        };
+    }
+    // The log only grows on a phase change, so that is when it is re-read.
+    readonly property string focusPhase: focus.phase
+    onFocusPhaseChanged: focusLogFile.reload()
+
+    readonly property bool focusLong: focus.phase === "focus" && focus.mode === "flow"
+        && focus.now - focus.start >= focusNudgeMin * 60
+
+    // Big number: elapsed in a flow block (it has no end), remaining otherwise.
+    readonly property int focusShown: {
+        const f = focus;
+        if (f.phase === "focus" && f.mode === "flow") return f.now - f.start;
+        if (f.phase === "idle") return 0;
+        return Math.max(0, f.end - f.now);
+    }
+    readonly property real focusProgress: {
+        const f = focus;
+        if (f.phase === "idle") return 0;
+        if (f.phase === "focus" && f.mode === "flow")
+            return Math.min(1, (f.now - f.start) / (focusNudgeMin * 60));
+        const span = f.end - f.start;
+        return span > 0 ? Math.min(1, Math.max(0, (f.now - f.start) / span)) : 0;
+    }
+    readonly property color focusColor:
+        focus.phase === "break" ? pal.adapter.green
+        : focusLong ? pal.adapter.peach
+        : focus.phase === "focus" ? pal.adapter.mauve
+        : pal.adapter.overlay0
+
+    // Rolling seven days ending today, from log.tsv (start, end, worked, break,
+    // mode). Day edges come from local midnights rather than start + 86400, so a
+    // DST change cannot shift a session into the wrong day.
+    readonly property var focusWeek: {
+        const _ = clock.date;
+        const txt = focusLogFile.text() || "";
+        const letters = ["D", "L", "M", "X", "J", "V", "S"];
+        const days = [];
+        const mid = new Date(); mid.setHours(0, 0, 0, 0);
+        for (let i = 6; i >= 0; i--) {
+            const a = new Date(mid); a.setDate(a.getDate() - i);
+            const b = new Date(a);   b.setDate(b.getDate() + 1);
+            days.push({ from: a.getTime() / 1000, to: b.getTime() / 1000,
+                        secs: 0, n: 0, label: letters[a.getDay()], today: i === 0 });
+        }
+        for (const line of txt.split("\n")) {
+            const c = line.split("\t");
+            if (c.length < 3) continue;
+            const s = Number(c[0]), w = Number(c[2]);
+            for (const d of days)
+                if (s >= d.from && s < d.to) { d.secs += w; d.n++; break; }
+        }
+        return days;
+    }
+    readonly property int focusWeekMax:
+        Math.max(3600, ...focusWeek.map(d => d.secs))   // an hour fills the bar at least
+
+    // The main button keeps the accent while idle so it reads as the call to
+    // action, instead of the dim idle colour the timer uses.
+    readonly property color focusPrimary: focus.phase === "idle" ? pal.adapter.mauve : focusColor
+
+    function fmtClock(s) {
+        const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, x = s % 60;
+        const p = n => (n < 10 ? "0" : "") + n;
+        return h > 0 ? h + ":" + p(m) + ":" + p(x) : p(m) + ":" + p(x);
+    }
+    function fmtDur(s) {
+        const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60;
+        return h > 0 ? h + "h " + (m < 10 ? "0" : "") + m + "m" : m + "m";
+    }
+    function fmtHM(epoch) { return Qt.formatDateTime(new Date(epoch * 1000), "HH:mm"); }
+
+    function focusRun(sub) {
+        Quickshell.execDetached({ command: [root.focusCmd, sub] });
+        focusRefresh.restart();
+    }
+    // The script has to finish writing before the card can show the new phase;
+    // without this a click looks ignored for up to a second.
+    Timer {
+        id: focusRefresh
+        interval: 150
+        onTriggered: { focusStateFile.reload(); focusLogFile.reload(); }
+    }
+    Timer {
+        interval: 1000
+        repeat: true
+        running: root.open
+        onTriggered: focusStateFile.reload()
+    }
+
     // ── Calendar ─────────────────────────────────────────────────────────────
     // Monday-first, matching the rest of the continent.
     readonly property var monthCells: {
@@ -355,6 +477,8 @@ PanelWindow {
         filter = "";
         appList.currentIndex = 0;
         appList.positionViewAtBeginning();
+        focusStateFile.reload();
+        focusLogFile.reload();
         // Focus the TextInput itself rather than a proxy item, so it does its
         // own text editing — insertion, backspace, cursor, selection, Ctrl+U —
         // instead of this file reimplementing it badly.
@@ -478,14 +602,24 @@ PanelWindow {
                 height: parent.height - 58
                 spacing: 14
 
-                // ── Column 1: calendar ───────────────────────────────────
-                Rectangle {
+                // ── Column 1: calendar + focus ───────────────────────────
+                Column {
                     width: 300; height: parent.height
+                    spacing: 14
+
+                Rectangle {
+                    id: calCard
+                    // Sized to the month, not the column: the focus card takes
+                    // whatever is left, which is ~30px more in a 5-row month.
+                    width: parent.width; height: calColumn.implicitHeight + 24
                     radius: 12
                     color: pal.adapter.mantle
 
                     Column {
-                        anchors.fill: parent
+                        id: calColumn
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.top: parent.top
                         anchors.margins: 12
                         spacing: 6
 
@@ -548,8 +682,216 @@ PanelWindow {
                             }
                         }
 
-                        Item { width: 1; height: 1 }
                     }
+                }
+
+                // Focus timer. Every control here runs focus.sh, the same as
+                // Super+O and the bar module, so all three always agree.
+                Rectangle {
+                    width: parent.width
+                    height: parent.height - calCard.height - parent.spacing
+                    radius: 12
+                    color: pal.adapter.mantle
+
+                    Column {
+                        id: focusCol
+                        anchors.fill: parent
+                        anchors.margins: 12
+                        spacing: 6
+
+                        Item {
+                            width: parent.width; height: 14
+                            Text {
+                                anchors.left: parent.left
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: "FOCO"
+                                color: pal.adapter.overlay0
+                                font.family: root.nf
+                                font.pixelSize: 10
+                            }
+                            // Mode chip. Only switchable while idle — the script
+                            // refuses otherwise, and a chip that looks clickable
+                            // and does nothing is worse than a dim one.
+                            Text {
+                                anchors.right: parent.right
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: (root.focus.mode === "flow" ? "FLOWTIME" : "POMODORO 25/5")
+                                      + (root.focus.phase === "idle" ? "  \u{F04E1}" : "")
+                                color: root.focus.phase === "idle" ? pal.adapter.subtext0
+                                                                   : pal.adapter.overlay0
+                                font.family: root.nf
+                                font.pixelSize: 10
+                                MouseArea {
+                                    anchors.fill: parent
+                                    anchors.margins: -4
+                                    enabled: root.focus.phase === "idle"
+                                    cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                                    onClicked: root.focusRun("mode")
+                                }
+                            }
+                        }
+
+                        Item {
+                            width: parent.width; height: 40
+                            Text {
+                                id: focusBig
+                                anchors.left: parent.left
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: root.fmtClock(root.focusShown)
+                                color: root.focusColor
+                                font.family: root.nf
+                                font.pixelSize: 32
+                                font.weight: Font.DemiBold
+                                Behavior on color { ColorAnimation { duration: 240 } }
+                            }
+                            Text {
+                                anchors.left: focusBig.right
+                                anchors.leftMargin: 10
+                                anchors.right: parent.right
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: {
+                                    const f = root.focus;
+                                    if (f.phase === "break") return "descanso\nhasta " + root.fmtHM(f.end);
+                                    if (f.phase === "focus" && f.mode === "pomo")
+                                        return "en foco\ntermina " + root.fmtHM(f.end);
+                                    if (f.phase === "focus") return "en foco\ndesde " + root.fmtHM(f.start);
+                                    return "listo\nSuper+O";
+                                }
+                                color: pal.adapter.subtext0
+                                font.family: root.nf
+                                font.pixelSize: 11
+                                lineHeight: 1.1
+                                elide: Text.ElideRight
+                            }
+                        }
+
+                        // Flow: progress toward the 90-min nudge. Pomodoro and
+                        // break: progress through the fixed span.
+                        Rectangle {
+                            width: parent.width; height: 4; radius: 2
+                            color: pal.adapter.surface1
+                            Rectangle {
+                                width: parent.width * root.focusProgress
+                                height: parent.height; radius: 2
+                                color: root.focusColor
+                                Behavior on width { NumberAnimation { duration: 400; easing.type: Easing.OutCubic } }
+                            }
+                        }
+
+                        Row {
+                            id: focusBtns
+                            width: parent.width; height: 26
+                            spacing: 6
+                            Repeater {
+                                model: {
+                                    const p = root.focus.phase;
+                                    const main = p === "idle"  ? { label: "\u{F040A}  Empezar", sub: "toggle" }
+                                               : p === "focus" ? { label: "\u{F0176}  Descansar", sub: "toggle" }
+                                               :                 { label: "\u{F04AD}  Saltar descanso", sub: "toggle" };
+                                    return p === "idle" ? [main]
+                                         : [main, { label: "\u{F04DB}  Parar", sub: "stop" }];
+                                }
+                                Rectangle {
+                                    required property var modelData
+                                    required property int index
+                                    readonly property bool primary: index === 0
+                                    // Primary takes the slack; Parar is fixed.
+                                    width: primary ? focusBtns.width - (root.focus.phase !== "idle" ? 86 + focusBtns.spacing : 0)
+                                                   : 86
+                                    height: parent.height
+                                    radius: 6
+                                    // Secondary is an outline, not a surface0 fill: wallust's
+                                    // surface0 can land a few percent off subtext0 (it did,
+                                    // #899480 vs #C3D4B7), and the label vanished into it.
+                                    color: primary ? (hover.containsMouse ? Qt.lighter(root.focusPrimary, 1.12) : root.focusPrimary)
+                                                   : (hover.containsMouse ? Qt.alpha(pal.adapter.text, 0.08) : "transparent")
+                                    border.width: primary ? 0 : 1
+                                    border.color: pal.adapter.overlay0
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: modelData.label
+                                        color: parent.primary ? pal.adapter.crust : pal.adapter.subtext0
+                                        font.family: root.nf
+                                        font.pixelSize: 11
+                                        font.weight: parent.primary ? Font.DemiBold : Font.Normal
+                                    }
+                                    MouseArea {
+                                        id: hover
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: root.focusRun(modelData.sub)
+                                    }
+                                }
+                            }
+                        }
+
+                        Item {
+                            width: parent.width; height: 14
+                            Text {
+                                anchors.left: parent.left
+                                anchors.verticalCenter: parent.verticalCenter
+                                readonly property var t: root.focusWeek[6]
+                                text: "Hoy " + root.fmtDur(t.secs) + " · " + t.n
+                                      + (t.n === 1 ? " sesión" : " sesiones")
+                                color: pal.adapter.subtext0
+                                font.family: root.nf
+                                font.pixelSize: 11
+                            }
+                            Text {
+                                anchors.right: parent.right
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: "7 días " + root.fmtDur(root.focusWeek.reduce((a, d) => a + d.secs, 0))
+                                color: pal.adapter.overlay0
+                                font.family: root.nf
+                                font.pixelSize: 11
+                            }
+                        }
+
+                        // Last seven days, today on the right. Scaled to the
+                        // busiest day but never below an hour, so a 20-minute
+                        // day does not draw as a full bar.
+                        Row {
+                            id: weekRow
+                            width: parent.width
+                            height: focusCol.height - y
+                            spacing: 6
+                            Repeater {
+                                model: root.focusWeek
+                                Item {
+                                    required property var modelData
+                                    width: (weekRow.width - weekRow.spacing * 6) / 7
+                                    height: weekRow.height
+                                    Text {
+                                        id: dayLabel
+                                        anchors.bottom: parent.bottom
+                                        anchors.horizontalCenter: parent.horizontalCenter
+                                        text: modelData.label
+                                        color: modelData.today ? pal.adapter.text : pal.adapter.overlay0
+                                        font.family: root.nf
+                                        font.pixelSize: 10
+                                        font.weight: modelData.today ? Font.Bold : Font.Normal
+                                    }
+                                    Rectangle {
+                                        anchors.bottom: dayLabel.top
+                                        anchors.bottomMargin: 3
+                                        anchors.horizontalCenter: parent.horizontalCenter
+                                        width: parent.width * 0.7
+                                        // A 2px stub on empty days keeps the
+                                        // baseline readable as "zero", not "missing".
+                                        height: Math.max(2, (parent.height - dayLabel.height - 3)
+                                                * modelData.secs / root.focusWeekMax)
+                                        radius: 3
+                                        color: modelData.today ? pal.adapter.mauve
+                                             : modelData.secs > 0 ? pal.adapter.surface2
+                                             : pal.adapter.surface1
+                                        Behavior on height { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
                 }
 
                 // ── Column 2: launcher ───────────────────────────────────

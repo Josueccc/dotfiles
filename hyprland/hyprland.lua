@@ -463,6 +463,11 @@ hl.bind(mainMod .. " + CTRL + SHIFT + L", hl.dsp.exec_cmd("hyprlock"))
 -- Night light (manual override on top of the hyprsunset time profiles)
 hl.bind(mainMod .. " + SHIFT + M", hl.dsp.exec_cmd("~/.config/hypr/scripts/nightlight.sh"))
 
+-- Focus timer (waybar/scripts/focus.sh): O starts/ends a focus block (ending
+-- it starts the earned break), SHIFT+O stops everything.
+hl.bind(mainMod .. " + O",         hl.dsp.exec_cmd("~/.config/waybar/scripts/focus.sh toggle"))
+hl.bind(mainMod .. " + SHIFT + O", hl.dsp.exec_cmd("~/.config/waybar/scripts/focus.sh stop"))
+
 -- Power menu
 hl.bind(mainMod .. " + SHIFT + P", hl.dsp.exec_cmd("~/.config/waybar/scripts/powermenu.sh"))
 

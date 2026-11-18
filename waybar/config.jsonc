@@ -12,7 +12,7 @@
         "hyprland/workspaces",
         "hyprland/window"
     ],
-    "modules-center": ["clock"],
+    "modules-center": ["clock", "custom/focus"],
     "modules-right": [
         "custom/notification",
         "bluetooth",
@@ -204,6 +204,20 @@
         "on-click": "pavucontrol",
         "on-scroll-up": "pamixer --allow-boost increase 5",
         "on-scroll-down": "pamixer --allow-boost decrease 5"
+    },
+
+    // ── Focus timer (Flowtime / Pomodoro) ──────────────────────────────────
+    // waybar/scripts/focus.sh — the state and timers live in the script, the
+    // bar only renders `watch`. Super+O toggles from anywhere.
+    // left → start / end focus (→ break) / skip break
+    // right → stop (a running focus is still logged)   middle → flow ↔ pomodoro
+    "custom/focus": {
+        "exec": "~/.config/waybar/scripts/focus.sh watch",
+        "return-type": "json",
+        "restart-interval": 5,
+        "on-click": "~/.config/waybar/scripts/focus.sh toggle",
+        "on-click-right": "~/.config/waybar/scripts/focus.sh stop",
+        "on-click-middle": "~/.config/waybar/scripts/focus.sh mode"
     },
 
     // ── System tray ───────────────────────────────────────────────────────

@@ -255,6 +255,22 @@ Arch's waybar is built with `-Dcava=disabled`, so the native `cava` module is un
 
 Two things in that config that look wrong but aren't: `bar_delimiter` must stay a **printable** character (setting it to `0` means "emit a NUL byte", not "no separator" — the wrapper strips non-digits anyway, which is why it degrades to clean bars rather than garbage), and `noise_reduction` needs to be lowish (60) or the bars barely move on anything but loud audio. To check the bars are actually reacting, play a tone with `paplay /usr/share/sounds/alsa/Front_Center.wav` — `pactl play-file` does not exist.
 
+## Focus timer (Flowtime / Pomodoro, `Super+O`)
+
+`waybar/scripts/focus.sh` is the whole thing; `custom/focus` sits beside the clock and only renders `focus.sh watch`. Default is **Flowtime**: the focus block runs until you end it, and the break is `worked / 5` (minimum 1 min). Middle-click switches to Pomodoro 25/5. `Super+O` / left-click: start → end (starts the break) → skip break. `Super+Shift+O` / right-click: stop (the focus still gets logged, with no break). A block under 60s is a false start and is not logged. One notification at 90 min in flow mode, and the bar text turns `@peach`. swaync DND is on during focus and goes back to what it was before. Constants are at the top of the script.
+
+State is in `~/.local/state/rizz-focus/`: `state`, `log.tsv` (start, end, worked, break, mode — one row per block), `today` (cached day total, so the per-second loop never scans the log). Timers are **transient systemd user units** (`rizz-focus-{nudge,focusend,breakend}.timer`), not sleeping shells, so a waybar restart loses nothing. `systemctl --user list-timers 'rizz-focus-*'` shows what is armed. Three traps, each one found by running it:
+
+- **The break timer needs a different unit name from the focus timer.** In Pomodoro the break is armed *from inside* `rizz-focus-focusend.service`, and `systemd-run` refuses a name that is still active. With one shared `end` name the break was never armed and the bar sat on `00:00` forever.
+- **A multi-unit `systemctl stop` gives up at the first unit that is not loaded**, so the 90-min nudge stayed armed after a focus with no Pomodoro timer. One `stop` per unit.
+- **A timer's own service must not stop its own timer** (`SELF_TIMER`), and `paplay` runs in the foreground. Anything backgrounded is killed with the unit's cgroup when the script exits.
+
+**The dashboard card (`Super+D`, under the calendar) is a view, not a second timer.** It reads `state` and `log.tsv` and runs `focus.sh toggle|stop|mode` like the bar does. Its week chart is the last 7 days rebuilt from `log.tsv`. It re-reads `state` on a 1s timer while the dashboard is open, with no `watchChanges`: the script swaps the file in with `mv`, and a watcher stays on the old inode. `focusNudgeMin` in `shell.qml` mirrors `NUDGE_MIN`, but only for drawing; change both together.
+
+**Never test against the real state dir.** On 2026-11-18 a test `toggle` ended a focus session the user had just started with `Super+O`. The state is shared with whoever is at the keyboard. Use a scratch `XDG_STATE_HOME`, and read `~/.local/state/rizz-focus/state` before touching anything.
+
+Test without waiting 25 minutes: `sed` a copy with the `* 60` removed and a scratch `XDG_STATE_HOME` (the script passes it on to the timer units), then let two cycles fire on their own.
+
 ## Music (mpd + rmpc, Pear Desktop)
 
 **rmpc is only a client; mpd is the player.** mpd and `mpd-mpris` run as systemd

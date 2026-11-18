@@ -257,6 +257,21 @@ tooltip label {
     to   { color: @base; background: alpha(@red, 0.3); border-radius: 8px; }
 }
 
+/* ── Focus timer ──────────────────────────────────────────────────────────── */
+/* Sits in the centre island beside the clock, so no pill of its own. Idle is a
+ * dim icon; focus takes the accent; a flow block past the nudge (90 min)
+ * warms up instead of nagging. */
+#custom-focus {
+    padding: 0 12px 0 4px;
+    font-weight: bold;
+    font-size: 13px;
+}
+#custom-focus.idle       { color: @overlay0; font-weight: normal; }
+#custom-focus.focus      { color: @mauve; }
+#custom-focus.focus.long { color: @peach; }
+#custom-focus.break      { color: @green; }
+#custom-focus:hover      { color: @text; }
+
 /* ── Audio visualizer (cava) ──────────────────────────────────────────── */
 /* Colour comes from the palette above, so the bars follow the wallpaper. */
 #custom-cava {
