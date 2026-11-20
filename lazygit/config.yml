@@ -22,9 +22,9 @@ gui:
   mouseEvents: true
   sidePanelWidth: 0.25
 git:
-  pagers:
+  diffRenderers:
     - colorArg: always
-      pager: delta --dark --paging=never
+      command: delta --dark --paging=never
   autoFetch: true
   autoRefresh: true
   branchLogCmd: git log --graph --color=always --abbrev-commit --decorate --date=relative --pretty=medium {{branchName}} --
