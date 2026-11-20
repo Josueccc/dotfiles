@@ -359,14 +359,11 @@ local mainMod = "SUPER"
 
 hl.bind(mainMod .. " + Return", hl.dsp.exec_cmd(terminal))
 hl.bind(mainMod .. " + Q",      hl.dsp.window.close())
--- Logout: hyprshutdown first, because it stops apps cleanly. The fallbacks are
--- the same Lua-hyprctl trap as the layout toggle — `hyprctl dispatch exit` is a
--- parse error there — so the eval form comes first and the classic form stays as
--- the last resort for a stock Hyprland. Single-quoted so the inner double quotes
--- survive. The exit dispatcher itself is the one call here that cannot be tested
--- without ending the session, so it is unproven by design; if hyprshutdown ever
--- goes missing, check this line before assuming the key is dead.
-hl.bind(mainMod .. " + M",      hl.dsp.exec_cmd('command -v hyprshutdown >/dev/null 2>&1 && hyprshutdown || hyprctl eval "hl.dispatch(hl.dsp.exit())" || hyprctl dispatch exit'))
+-- Media play/pause over MPRIS: playerctl sees mpd through mpd-mpris, plus any
+-- browser or player that speaks MPRIS. M used to be the logout key and kept
+-- ending the session under a slipped finger; the logout moved to
+-- SUPER+CTRL+SHIFT+M (beside the lock binds below) and the rofi power menu.
+hl.bind(mainMod .. " + M",      hl.dsp.exec_cmd("playerctl play-pause"))
 hl.bind(mainMod .. " + E",      hl.dsp.exec_cmd(fileManager))
 hl.bind(mainMod .. " + V",      hl.dsp.window.float({ action = "toggle" }))
 hl.bind(mainMod .. " + R",      hl.dsp.exec_cmd(menu))
@@ -460,6 +457,20 @@ hl.bind(mainMod .. " + CTRL + L", hl.dsp.exec_cmd("~/.config/hypr/scripts/lock.s
 -- nothing to keep, since hyprlock.conf is already tuned (roadmap 1.2).
 hl.bind(mainMod .. " + CTRL + SHIFT + L", hl.dsp.exec_cmd("hyprlock"))
 
+-- Logout (SUPER+CTRL+SHIFT+M) — buried on purpose. This was plain SUPER+M and
+-- kept ending the session on a slipped finger; M alone is now media
+-- play/pause, and the rofi power menu (SUPER+SHIFT+P) carries an 'Exit
+-- session' entry too, so no single keypress can end the session any more.
+-- hyprshutdown first, because it stops apps cleanly. The fallbacks are the
+-- same Lua-hyprctl trap as the layout toggle — `hyprctl dispatch exit` is a
+-- parse error there — so the eval form comes first and the classic form stays
+-- as the last resort for a stock Hyprland. Single-quoted so the inner double
+-- quotes survive. The exit dispatcher itself is the one call here that cannot
+-- be tested without ending the session, so it is unproven by design; if
+-- hyprshutdown ever goes missing, check this line before assuming the key is
+-- dead.
+hl.bind(mainMod .. " + CTRL + SHIFT + M", hl.dsp.exec_cmd('command -v hyprshutdown >/dev/null 2>&1 && hyprshutdown || hyprctl eval "hl.dispatch(hl.dsp.exit())" || hyprctl dispatch exit'))
+
 -- Night light (manual override on top of the hyprsunset time profiles)
 hl.bind(mainMod .. " + SHIFT + M", hl.dsp.exec_cmd("~/.config/hypr/scripts/nightlight.sh"))
 
@@ -487,9 +498,6 @@ hl.bind("XF86AudioMicMute",     hl.dsp.exec_cmd("swayosd-client --input-volume m
 -- Brightness
 hl.bind("XF86MonBrightnessUp",   hl.dsp.exec_cmd("swayosd-client --brightness raise"), { locked = true, repeating = true })
 hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd("swayosd-client --brightness lower"), { locked = true, repeating = true })
-
--- Logout
-hl.bind(mainMod .. " + m", hl.dsp.exec_cmd("hyprshutdown"))
 
 -- Neovim
 hl.bind(mainMod .. " + SHIFT + V", hl.dsp.exec_cmd("kitty -e nvim"))
